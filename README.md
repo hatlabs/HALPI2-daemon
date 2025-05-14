@@ -1,108 +1,57 @@
-# Sailor Hat for Raspberry Pi: Daemon
+# HALPI2 Daemon
 
-[![Dependencies Status](https://img.shields.io/badge/dependencies-up%20to%20date-brightgreen.svg)](https://github.com/hatlabs/shrpid/pulls?utf8=%E2%9C%93&q=is%3Apr%20author%3Aapp%2Fdependabot)
+[![Dependencies Status](https://img.shields.io/badge/dependencies-up%20to%20date-brightgreen.svg)](https://github.com/hatlabs/halpid/pulls?utf8=%E2%9C%93&q=is%3Apr%20author%3Aapp%2Fdependabot)
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Security: bandit](https://img.shields.io/badge/security-bandit-green.svg)](https://github.com/PyCQA/bandit)
-[![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/hatlabs/shrpid/blob/master/.pre-commit-config.yaml)
-[![Semantic Versions](https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--versions-e10079.svg)](https://github.com/hatlabs/shrpid/releases)
-
-> **Note**
->
-> The description below applies to the current version 2 of SH-RPi. Version 2 is available for purchase at <a href="https://hatlabs.fi/"><b>hatlabs.fi</b></a>. The installation script also supports version 1 of SH-RPi even though most of the documentation below is for version 2.
-
+[![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/hatlabs/halpid/blob/master/.pre-commit-config.yaml)
+[![Semantic Versions](https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--versions-e10079.svg)](https://github.com/hatlabs/halpid/releases)
 
 ## Introduction
 
-[SH-RPi](https://shop.hatlabs.fi/products/sh-rpi), formally known as Sailor Hat for Raspberry Pi,
-is a Raspberry Pi smart power management board. The main features are:
-
-- Power management with a 60 Farad supercapacitor that provides so-called last gasp energy for shutting down the device in a controlled fashion after the system power is cut.
-- Peak power management: The same supercapacitor circuitry is able to provide peak current for power-hungry devices such as the Raspberry Pi 4B with SSD or NVMe drives, allowing those devices to be powered using current-limited subcircuits such as the NMEA2000 bus power wires.
-- Protection circuitry: The board is protected against noisy 12V/24V voltages commonly present on vehicles or marine vessels.
-- A battery-powered real-time clock circuit, allowing for the device to keep time even in the absence of GPS or networking.
-
-`shrpid` is a power monitor and watchdog for the SH-RPi. It communicates with the SH-RPi device, providing the "smart" aspects of the operation. Supported features include:
+[HALPI2](https://shop.hatlabs.fi/products/halpi2)
+is a Raspberry Pi Compute Module 5 based boat computer. `halpid` is a power monitor and watchdog service for HALPI2. It communicates with the HALPI2 controller, providing the "smart" aspects of the operation. Supported features include:
 
 - Blackout reporting if input voltage falls below a defined threshold
 - Triggering of device shutdown if power isn't restored
 - Supercap voltage reporting
-- Watchdog functionality: if the SH-RPi receives no communication for 10 seconds, the SH-RPi will hard reset the device.
+- Watchdog functionality: if the HALPI2 receives no communication for 10 seconds, the controller will hard reset the device.
 - RTC sleep mode: the onboard real-time clock can be set to boot the Raspberry Pi at a specific time. This is useful for battery powered devices that should perform scheduled tasks such as boat battery and bilge level monitoring.
+- Power-cycling the USB ports: the HALPI2 can power-cycle the USB ports, which is useful if a connected device becomes unresponsive.
 
-The main use case for the service software is to have the Raspberry Pi shut down once the power is cut. This prevents potential file system corruption without having to shut down the device manually.
+The main use case for the service software is to have the Raspberry Pi operating system shut down once the power is cut. This prevents potential file system corruption without having to shut down the device manually.
 
 ## Installation
 
-Copy and paste the following lines to your terminal to install the latest version of the daemon and to update the configuration files:
-
-    curl -L \
-        https://raw.githubusercontent.com/hatlabs/SH-RPi-daemon/main/install-online.sh \
-        | sudo bash
-
-### Installing from an online branch
-
-If you want to install the daemon from a specific branch, you can use the following command:
-
-    curl -L \
-        https://raw.githubusercontent.com/hatlabs/SH-RPi-daemon/BRANCH/install-online.sh \
-        | sudo bash -s -- https://github.com/hatlabs/SH-RPi-daemon BRANCH
-
-Replace `BRANCH` with the desired branch name. Note that the BRANCH needs to be specified twice in the command.
-
-### Using Docker
-
-If you prefer to use Docker to run the daemon, you can clone the repo and issue the following commands:
-
-    docker compose -f docker/docker-compose.yml build
-    docker compose -d -f docker/docker-compose.yml up
-
-If you have previously installed the daemon using the `install-online.sh` script, you need to stop and disable the daemon on your system by issuing the following command:
-
-    sudo systemctl disable --now shrpid
-
-Before starting the Docker container, you need to manually enable I2C on your Raspberry Pi by issuing the following command:
-
-    sudo raspi-config nonint do_i2c 0
-
-### Unattended Installation
-
-Alternatively, it is possible to clone this repo on a Raspberry Pi device and run the `install.sh` script. This will install the daemon and the configuration files. If you want to define the desired configuration without going through the interactive dialogs, they can be defined on the command line as follows:
-
-    sudo ./install.sh --enable RTC,CAN
-
-The above command will enable the RTC and CAN (NMEA 2000) features. The following features are available:
-
-- `RTC`: Enables the real-time-clock
-- `CAN`: Enables the CAN (NMEA 2000) interface
-- `RS485`: Enables the RS485 interface
-- `MAX-M8Q`: Enables the u-blox MAX-M8Q GPS interface
+TBD
 
 ## Configuration
 
-The `shrpid` daemon can be configured using a configuration file.
-The default configuration file location is `/etc/shrpid.conf`.
+The `halpid` daemon can be configured using a configuration file.
+The default configuration file location is `/etc/halpid.conf`.
 Note that no configuration file is created by default.
 Instead, you need to create one at the given location.
 The configuration file is in YAML format.
 The configuration keys are the same as daemon command line arguments that can be seen by issuing the following command:
 
-    shrpid --help
+    halpid --help
 
 For example, if you want to change the blackout time limit to 10 seconds andthe poweroff command to `/home/pi/bin/custom-poweroff`, you can edit the configuration file as follows:
 
     blackout-time-limit: 10
     poweroff: /home/pi/bin/custom-poweroff
 
-## SH-RPi documentation
+## HALPI2 Documentation
 
-For a more detailed SH-RPi documentation, please visit the [documentation website](https://docs.hatlabs.fi/sh-rpi).
+For a more detailed HALPI2 documentation, please visit the [documentation website](https://docs.hatlabs.fi/halpi2).
 
 ## Getting the hardware
 
-Sh-RPi devices are available for purchase at [shop.hatlabs.fi](https://shop.hatlabs.fi/).
+HALPI2 devices are available for purchase at [shop.hatlabs.fi](https://shop.hatlabs.fi/).
 
 ----
+
+**FIXME: The documentation below needs to be updated.**
 
 ## 🛠️ Development Instructions
 
@@ -120,12 +69,12 @@ Building a new version of the application contains steps:
 ### Development features
 
 - Supports for `Python 3.9` and higher.
-- [`Poetry`](https://python-poetry.org/) as the dependencies manager. See configuration in [`pyproject.toml`](https://github.com/hatlabs/shrpid/blob/master/pyproject.toml) and [`setup.cfg`](https://github.com/hatlabs/shrpid/blob/master/setup.cfg).
+- [`Poetry`](https://python-poetry.org/) as the dependencies manager. See configuration in [`pyproject.toml`](https://github.com/hatlabs/halpid/blob/master/pyproject.toml) and [`setup.cfg`](https://github.com/hatlabs/halpid/blob/master/setup.cfg).
 - Automatic codestyle with [`black`](https://github.com/psf/black), [`isort`](https://github.com/timothycrosley/isort) and [`pyupgrade`](https://github.com/asottile/pyupgrade).
 - Ready-to-use [`pre-commit`](https://pre-commit.com/) hooks with code-formatting.
 - Type checks with [`mypy`](https://mypy.readthedocs.io); docstring checks with [`darglint`](https://github.com/terrencepreilly/darglint); security checks with [`safety`](https://github.com/pyupio/safety) and [`bandit`](https://github.com/PyCQA/bandit)
 - Testing with [`pytest`](https://docs.pytest.org/en/latest/).
-- Ready-to-use [`.editorconfig`](https://github.com/hatlabs/shrpid/blob/master/.editorconfig), [`.dockerignore`](https://github.com/hatlabs/shrpid/blob/master/.dockerignore), and [`.gitignore`](https://github.com/hatlabs/shrpid/blob/master/.gitignore). You don't have to worry about those things.
+- Ready-to-use [`.editorconfig`](https://github.com/hatlabs/halpid/blob/master/.editorconfig), [`.dockerignore`](https://github.com/hatlabs/halpid/blob/master/.dockerignore), and [`.gitignore`](https://github.com/hatlabs/halpid/blob/master/.gitignore). You don't have to worry about those things.
 
 ### Deployment features
 

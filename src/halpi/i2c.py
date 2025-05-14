@@ -29,7 +29,7 @@ class DeviceNotFoundError(Exception):
     pass
 
 
-class SHRPiDevice:
+class HALPIDevice:
     def __init__(self, bus: int, addr: int):
         self.bus = bus
         self.addr = addr
@@ -47,19 +47,18 @@ class SHRPiDevice:
         self.temp_max = 0.0
 
     @classmethod
-    def factory(cls, bus: int, addr: int) -> "SHRPiDevice":
+    def factory(cls, bus: int, addr: int) -> "HALPIDevice":
         temp_device = cls(bus, addr)
         hw_ver = temp_device.hardware_version()
 
-        device: SHRPiDevice
+        device: HALPI2Device
         try:
-            if hw_ver.startswith("1."):
-                device = SHRPiV1Device(bus, addr)
-            else:
-                device = SHRPiV2Device(bus, addr)
+            device = HALPI2Device(bus, addr)
             return device
         except OSError:
-            raise DeviceNotFoundError("SH-RPi not found at I2C address %s" % addr)
+            raise DeviceNotFoundError(
+                "HALPI2 controller not found at I2C address %s" % addr
+            )
 
     def i2c_query_byte(self, reg: int) -> int:
         with SMBus(self.bus) as bus:
@@ -204,32 +203,9 @@ class SHRPiDevice:
         raise NotImplementedError("Temperature not implemented in base class")
 
 
-class SHRPiV1Device(SHRPiDevice):
+class HALPI2Device(HALPIDevice):
     """
-    Device interface for SH-RPi v1 hardware.
-    """
-
-    def __init__(self, bus=1, addr=0x6D):
-        super().__init__(bus, addr)
-        self.vcap_max = 2.75
-        self.dcin_max = 32.1
-
-    def led_brightness(self):
-        return None
-
-    def set_led_brightness(self, brightness: int) -> None:
-        raise NotImplementedError("LED brightness not supported in v1 firmware")
-
-    def input_current(self):
-        return None
-
-    def temperature(self):
-        return None
-
-
-class SHRPiV2Device(SHRPiDevice):
-    """
-    Device interface for SH-RPi v2 hardware.
+    Device interface for HALPI2 hardware.
     """
 
     def __init__(self, bus=1, addr=0x6D):

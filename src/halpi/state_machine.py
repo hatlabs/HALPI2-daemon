@@ -4,11 +4,11 @@ from subprocess import check_call
 
 from loguru import logger
 
-from shrpi.i2c import SHRPiDevice
+from halpi.i2c import HALPIDevice
 
 
 async def run_state_machine(
-    shrpi_device: SHRPiDevice,
+    halpi_device: HALPIDevice,
     blackout_time_limit: float,
     blackout_voltage_limit: float,
     dry_run: bool = False,
@@ -21,11 +21,11 @@ async def run_state_machine(
         # TODO: Provide facilities for reporting the states and voltages
         # en5v_state = dev.en5v_state()
         # dev_state = dev.state()
-        dcin_voltage = shrpi_device.dcin_voltage()
+        dcin_voltage = halpi_device.dcin_voltage()
         # supercap_voltage = dev.supercap_voltage()
 
         if state == "START":
-            shrpi_device.set_watchdog_timeout(10)
+            halpi_device.set_watchdog_timeout(10)
             state = "OK"
         elif state == "OK":
             if dcin_voltage < blackout_voltage_limit:
@@ -47,7 +47,7 @@ async def run_state_machine(
                 logger.warning(f"Would execute {poweroff}")
             else:
                 # inform the hat about this sad state of affairs
-                shrpi_device.request_shutdown()
+                halpi_device.request_shutdown()
                 logger.info(f"Executing {poweroff}")
                 check_call(["sudo", poweroff])
             state = "DEAD"

@@ -1,5 +1,5 @@
 [Unit]
-Description=SH-RPi Daemon
+Description=HALPI Daemon
 After=syslog.target
 StartLimitIntervalSec=0
 
@@ -8,7 +8,7 @@ Type=simple
 Restart=always
 RestartSec=1
 User=root
-ExecStart=/usr/local/bin/shrpid -s /var/run/shrpid.sock
+ExecStart=/usr/local/bin/halpid -s /var/run/halpid.sock
 
 [Install]
 WantedBy=multi-user.target

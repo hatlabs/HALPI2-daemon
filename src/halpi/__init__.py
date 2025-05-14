@@ -1,5 +1,5 @@
-"""`shrpid` is a power monitor and watchdog for the SH-RPi.
-It communicates with the SH-RPi device, providing the "smart"
+"""`halpid` is a power monitor and watchdog for the HALPI2 computers.
+It communicates with the HALPI2 controller, providing the "smart"
 aspects of the operation."""
 
 from importlib import metadata as importlib_metadata

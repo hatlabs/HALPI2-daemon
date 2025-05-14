@@ -7,11 +7,11 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-"""SH-RPi command line interface communicates with the shrpid daemon and
+"""HALPI2 command line interface communicates with the halpid daemon and
 allows the user to observe and control the device."""
 
 app = typer.Typer(
-    name="shrpi",
+    name="halpi",
     help=__doc__,
     add_completion=False,
 )
@@ -232,10 +232,10 @@ def set_led_brightness(brightness: float) -> None:
 @app.callback()
 def callback(
     socket: pathlib.Path = typer.Option(
-        pathlib.Path("/var/run/shrpid.sock"), "--socket", "-s"
+        pathlib.Path("/var/run/halpid.sock"), "--socket", "-s"
     ),
 ) -> None:
-    """SH-RPi command line interface communicates with the shrpid daemon and
+    """HALPI command line interface communicates with the halpid daemon and
     allows the user to observe and control the device."""
     state["socket"] = socket
 

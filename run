@@ -26,7 +26,7 @@ fi
 readonly PROJECT_ROOT=$(pwd)
 
 # Some useful variables.
-DOCKER_IMAGE="shrpid"
+DOCKER_IMAGE="halpid"
 DOCKER_IMAGE_VERSION="latest"
 
 # Store the absolute path to this script (useful for recursion).

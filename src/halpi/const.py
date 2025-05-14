@@ -1,10 +1,10 @@
-# Config file for SH-RPi daemon
-CONFIG_FILE_LOCATION = "/etc/shrpid.conf"
+# Config file for HALPI daemon
+CONFIG_FILE_LOCATION = "/etc/halpid.conf"
 
 # Default I2C bus for Raspberry Pi
 I2C_BUS = 1
 
-# Default I2C address for SH-RPi
+# Default I2C address for HALPI
 I2C_ADDR = 0x6D
 
 # After this many seconds of blackout, the daemon will shut down the Pi

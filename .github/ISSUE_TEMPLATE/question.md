@@ -10,7 +10,7 @@ assignees:
 
 <!-- Mark with an `x` all the checkboxes that apply (like `[x]`) -->
 
-- [ ] I've searched the project's [`issues`](https://github.com/hatlabs/shrpid/issues?q=is%3Aissue).
+- [ ] I've searched the project's [`issues`](https://github.com/hatlabs/halpid/issues?q=is%3Aissue).
 
 ## ❓ Question
 

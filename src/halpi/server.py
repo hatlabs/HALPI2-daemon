@@ -11,23 +11,23 @@ import dateparser
 from aiohttp import web
 from loguru import logger
 
-import shrpi.const
-import shrpi.i2c
+import halpi.const
+import halpi.i2c
 
 
 class RouteHandlers:
-    def __init__(self, shrpi_device: shrpi.i2c.SHRPiDevice, poweroff_command: str):
-        self.shrpi_device = shrpi_device
+    def __init__(self, halpi_device: halpi.i2c.HALPIDevice, poweroff_command: str):
+        self.halpi_device = halpi_device
         self.poweroff_command = poweroff_command
 
     async def get_root(self, request: web.Request) -> web.Response:
-        return web.Response(text="This is shrpid!\n")
+        return web.Response(text="This is halpid!\n")
 
     async def get_version(self, request: web.Request) -> web.Response:
         """Get the hardware and firmware version numbers."""
-        hw_version = self.shrpi_device.hardware_version()
-        fw_version = self.shrpi_device.firmware_version()
-        daemon_version = shrpi.const.VERSION
+        hw_version = self.halpi_device.hardware_version()
+        fw_version = self.halpi_device.firmware_version()
+        daemon_version = halpi.const.VERSION
 
         response = {
             "hardware_version": hw_version,
@@ -39,9 +39,9 @@ class RouteHandlers:
 
     async def get_state(self, request: web.Request) -> web.Response:
         """Get the current state of the device."""
-        state = self.shrpi_device.state()
-        en5v_state = self.shrpi_device.en5v_state()
-        watchdog_enabled = bool(self.shrpi_device.watchdog_timeout())
+        state = self.halpi_device.state()
+        en5v_state = self.halpi_device.en5v_state()
+        watchdog_enabled = bool(self.halpi_device.watchdog_timeout())
 
         response = {
             "state": state,
@@ -53,7 +53,7 @@ class RouteHandlers:
 
     async def post_shutdown(self, request: web.Request) -> web.Response:
         """Receive a shutdown request from the client."""
-        self.shrpi_device.request_shutdown()  # Inform the device about the shutdown
+        self.halpi_device.request_shutdown()  # Inform the device about the shutdown
         # call the system shutdown command
         logger.info(f"Executing {self.poweroff_command}")
         asyncio.create_task(asyncio.create_subprocess_shell(self.poweroff_command))
@@ -63,7 +63,7 @@ class RouteHandlers:
     async def post_sleep(self, request: web.Request) -> web.Response:
         """Receive a sleep request from the client."""
 
-        if self.shrpi_device.firmware_version().startswith("1."):
+        if self.halpi_device.firmware_version().startswith("1."):
             return web.Response(
                 status=400,
                 text="Sleep mode is not supported in firmware version 1.x",
@@ -101,7 +101,7 @@ class RouteHandlers:
             asyncio.create_subprocess_exec("rtcwake", "-m", "no", "-t", str(timestamp))
         )
 
-        self.shrpi_device.request_sleep()
+        self.halpi_device.request_sleep()
 
         # From the OS point of view, this is a regular shutdown.
         asyncio.create_task(asyncio.create_subprocess_exec("shutdown", "-h", "now"))
@@ -110,10 +110,10 @@ class RouteHandlers:
 
     async def get_config(self, request: web.Request) -> web.Response:
         """Get the configuration."""
-        watchdog_timeout = self.shrpi_device.watchdog_timeout()
-        power_on_threshold = self.shrpi_device.power_on_threshold()
-        power_off_threshold = self.shrpi_device.power_off_threshold()
-        led_brightness = self.shrpi_device.led_brightness()
+        watchdog_timeout = self.halpi_device.watchdog_timeout()
+        power_on_threshold = self.halpi_device.power_on_threshold()
+        power_off_threshold = self.halpi_device.power_off_threshold()
+        led_brightness = self.halpi_device.led_brightness()
 
         config = {
             "watchdog_timeout": watchdog_timeout,
@@ -129,13 +129,13 @@ class RouteHandlers:
         key = request.match_info["key"]
 
         if key == "watchdog_timeout":
-            value = self.shrpi_device.watchdog_timeout()
+            value = self.halpi_device.watchdog_timeout()
         elif key == "power_on_threshold":
-            value = self.shrpi_device.power_on_threshold()
+            value = self.halpi_device.power_on_threshold()
         elif key == "power_off_threshold":
-            value = self.shrpi_device.power_off_threshold()
+            value = self.halpi_device.power_off_threshold()
         elif key == "led_brightness":
-            value = self.shrpi_device.led_brightness()
+            value = self.halpi_device.led_brightness()
         else:
             return web.Response(status=404)
 
@@ -152,18 +152,18 @@ class RouteHandlers:
             return web.Response(status=400, text="Value must be a number")
 
         if key == "watchdog_timeout":
-            self.shrpi_device.set_watchdog_timeout(float(data))
+            self.halpi_device.set_watchdog_timeout(float(data))
         elif key == "power_on_threshold":
-            self.shrpi_device.set_power_on_threshold(data)
+            self.halpi_device.set_power_on_threshold(data)
         elif key == "power_off_threshold":
-            self.shrpi_device.set_power_off_threshold(data)
+            self.halpi_device.set_power_off_threshold(data)
         elif key == "led_brightness":
-            if self.shrpi_device.firmware_version().startswith("1."):
+            if self.halpi_device.firmware_version().startswith("1."):
                 return web.Response(
                     status=400,
                     text="LED brightness is not supported in hardware version 1.x",
                 )
-            self.shrpi_device.set_led_brightness(int(data))
+            self.halpi_device.set_led_brightness(int(data))
         else:
             return web.Response(status=404)
 
@@ -171,10 +171,10 @@ class RouteHandlers:
 
     async def get_values(self, request: web.Request) -> web.Response:
         """Get measured values."""
-        dcin_voltage = self.shrpi_device.dcin_voltage()
-        supercap_voltage = self.shrpi_device.supercap_voltage()
-        input_current = self.shrpi_device.input_current()
-        mcu_temperature = self.shrpi_device.temperature()
+        dcin_voltage = self.halpi_device.dcin_voltage()
+        supercap_voltage = self.halpi_device.supercap_voltage()
+        input_current = self.halpi_device.input_current()
+        mcu_temperature = self.halpi_device.temperature()
 
         values = {
             "V_in": dcin_voltage,
@@ -190,13 +190,13 @@ class RouteHandlers:
         key = request.match_info["key"]
 
         if key == "V_in":
-            value = self.shrpi_device.dcin_voltage()
+            value = self.halpi_device.dcin_voltage()
         elif key == "V_supercap":
-            value = self.shrpi_device.supercap_voltage()
+            value = self.halpi_device.supercap_voltage()
         elif key == "I_in":
-            value = self.shrpi_device.input_current()
+            value = self.halpi_device.input_current()
         elif key == "T_mcu":
-            value = self.shrpi_device.temperature()
+            value = self.halpi_device.temperature()
         else:
             return web.Response(status=404)
 
@@ -204,14 +204,14 @@ class RouteHandlers:
 
 
 async def run_http_server(
-    shrpi_device: shrpi.i2c.SHRPiDevice,
+    halpi_device: halpi.i2c.HALPIDevice,
     socket_path: pathlib.PosixPath,
     socket_group: int,
     poweroff: str,
 ) -> web.AppRunner:
     """Run the HTTP server."""
 
-    handlers = RouteHandlers(shrpi_device, poweroff_command=poweroff)
+    handlers = RouteHandlers(halpi_device, poweroff_command=poweroff)
 
     app = web.Application()
     app.add_routes(

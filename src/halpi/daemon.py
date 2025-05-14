@@ -10,7 +10,7 @@ from typing import Any, Dict, List
 import yaml
 from loguru import logger
 
-from shrpi.const import (
+from halpi.const import (
     CONFIG_FILE_LOCATION,
     DEFAULT_BLACKOUT_TIME_LIMIT,
     DEFAULT_BLACKOUT_VOLTAGE_LIMIT,
@@ -18,9 +18,9 @@ from shrpi.const import (
     I2C_BUS,
     VERSION,
 )
-from shrpi.i2c import DeviceNotFoundError, SHRPiDevice
-from shrpi.server import run_http_server
-from shrpi.state_machine import run_state_machine
+from halpi.i2c import DeviceNotFoundError, HALPIDevice
+from halpi.server import run_http_server
+from halpi.state_machine import run_state_machine
 
 
 def read_config_files(parser: argparse.ArgumentParser, paths: List[str]) -> None:
@@ -115,15 +115,15 @@ async def async_main():
     i2c_addr = args.i2c_addr
 
     try:
-        shrpi_device = SHRPiDevice.factory(i2c_bus, i2c_addr)
+        halpi_device = HALPIDevice.factory(i2c_bus, i2c_addr)
     except DeviceNotFoundError as e:
         logger.error(f"Error: {e}")
         sys.exit(1)
 
-    hw_version = shrpi_device.hardware_version()
-    fw_version = shrpi_device.firmware_version()
+    hw_version = halpi_device.hardware_version()
+    fw_version = halpi_device.firmware_version()
     logger.info(
-        f"SH-RPi device detected; HW version {hw_version}, FW version {fw_version}"
+        f"HALPI device detected; HW version {hw_version}, FW version {fw_version}"
     )
 
     blackout_time_limit = args.blackout_time_limit
@@ -131,11 +131,11 @@ async def async_main():
 
     socket_path: pathlib.PosixPath
     if args.socket is None:
-        # if we're root user, we should be able to write to /var/run/shrpid.sock
+        # if we're root user, we should be able to write to /var/run/halpid.sock
         if os.getuid() == 0:
-            socket_path = pathlib.PosixPath("/var/run/shrpid.sock")
+            socket_path = pathlib.PosixPath("/var/run/halpid.sock")
         else:
-            socket_path = pathlib.PosixPath.home() / ".shrpid.sock"
+            socket_path = pathlib.PosixPath.home() / ".halpid.sock"
     else:
         socket_path = args.socket
 
@@ -168,30 +168,30 @@ async def async_main():
         socket_group = pathlib.PosixPath.home().stat().st_gid
 
     def cleanup(signum, frame):
-        logger.info("Disabling SH-RPi watchdog")
-        shrpi_device.set_watchdog_timeout(0)
+        logger.info("Disabling HALPI watchdog")
+        halpi_device.set_watchdog_timeout(0)
         # delete the socket file
         if socket_path.exists():
             socket_path.unlink()
-        logger.info("shrpid exiting")
+        logger.info("halpid exiting")
         sys.exit(0)
 
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
 
-    logger.info(f"Starting shrpid version {VERSION} on {socket_path}")
+    logger.info(f"Starting halpid version {VERSION} on {socket_path}")
 
     # run these with asyncio:
 
     coro1 = run_state_machine(
-        shrpi_device,
+        halpi_device,
         blackout_time_limit,
         blackout_voltage_limit,
         poweroff=args.poweroff,
         dry_run=args.n,
     )
     coro2 = run_http_server(
-        shrpi_device, socket_path, socket_group, poweroff=args.poweroff
+        halpi_device, socket_path, socket_group, poweroff=args.poweroff
     )
     coro3 = wait_forever()
 
