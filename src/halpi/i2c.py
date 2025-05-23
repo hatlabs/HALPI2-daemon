@@ -7,21 +7,13 @@ from smbus2 import SMBus
 class States(Enum):
     BEGIN = 0
     WAIT_FOR_POWER_ON = 1
-    ENTER_POWER_ON_5V_OFF = 2
     POWER_ON_5V_OFF = 3
-    ENTER_POWER_ON_5V_ON = 4
     POWER_ON_5V_ON = 5
-    ENTER_POWER_OFF_5V_ON = 6
     POWER_OFF_5V_ON = 7
-    ENTER_SHUTDOWN = 8
     SHUTDOWN = 9
-    ENTER_WATCHDOG_REBOOT = 10
     WATCHDOG_REBOOT = 11
-    ENTER_OFF = 12
     OFF = 13
-    ENTER_SLEEP_SHUTDOWN = 14
     SLEEP_SHUTDOWN = 15
-    ENTER_SLEEP = 16
     SLEEP = 17
 
 
@@ -35,8 +27,6 @@ class HALPIDevice:
         self.addr = addr
         self._hardware_version = "Unknown"
         self._firmware_version = "Unknown"
-        self.read_analog = self.read_analog_byte  # default to v1 protocol
-        self.write_analog = self.write_analog_byte  # default to v1 protocol
 
         self.hardware_version()  # force hardware version detection
         self.firmware_version()  # force firmware version detection
@@ -161,25 +151,25 @@ class HALPIDevice:
             self.i2c_write_byte(0x12, int(10 * timeout))
 
     def power_on_threshold(self) -> float:
-        return self.read_analog(0x13, self.vcap_max)
+        return self.read_analog_word(0x13, self.vcap_max)
 
     def set_power_on_threshold(self, threshold: float) -> None:
-        self.write_analog(0x13, threshold, self.vcap_max)
+        self.write_analog_word(0x13, threshold, self.vcap_max)
 
     def power_off_threshold(self) -> float:
-        return self.read_analog(0x14, self.vcap_max)
+        return self.read_analog_word(0x14, self.vcap_max)
 
     def set_power_off_threshold(self, threshold: float) -> None:
-        self.write_analog(0x14, threshold, self.vcap_max)
+        self.write_analog_word(0x14, threshold, self.vcap_max)
 
     def state(self) -> str:
         return States(self.i2c_query_byte(0x15)).name
 
     def dcin_voltage(self) -> float:
-        return self.read_analog(0x20, self.dcin_max)
+        return self.read_analog_word(0x20, self.dcin_max)
 
     def supercap_voltage(self) -> float:
-        return self.read_analog(0x21, self.vcap_max)
+        return self.read_analog_word(0x21, self.vcap_max)
 
     def request_shutdown(self):
         self.i2c_write_byte(0x30, 0x01)
@@ -210,10 +200,11 @@ class HALPI2Device(HALPIDevice):
 
     def __init__(self, bus=1, addr=0x6D):
         super().__init__(bus, addr)
-        self.vcap_max = 9.35
-        self.dcin_max = 32.1
-        self.i_max = 2.5
-        self.temp_max = 512.0  # in Kelvin
+        self.vcap_max = 11.0
+        self.dcin_max = 33.0
+        self.i_max = 3.3
+        self.temp_min = 273.15 - 40.0  # in Kelvin
+        self.temp_max = 273.15 + 100.0  # in Kelvin
 
     def watchdog_timeout(self) -> float:
         return self.i2c_query_word(0x12) / 1000
@@ -228,7 +219,7 @@ class HALPI2Device(HALPIDevice):
         self.i2c_write_byte(0x17, brightness)
 
     def input_current(self) -> float:
-        return self.read_analog(0x22, self.i_max)
+        return self.read_analog_word(0x22, self.i_max)
 
     def temperature(self) -> float:
-        return self.read_analog(0x23, self.temp_max)
+        return self.read_analog_word(0x23, self.temp_max)

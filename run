@@ -33,90 +33,11 @@ DOCKER_IMAGE_VERSION="latest"
 readonly SCRIPT="$PROJECT_ROOT/$(basename "$0")"
 
 ################################################################################
-# Meta-commands and utilities follow.
-
-function help {
-  # list all "public" functions (those not beginning with an underscore)
-  # defined in this file
-  printf "%s <task> [args]\n\nTasks:\n" "${0}"
-  compgen -A function | grep -v "^_" | cat -n
-
-  printf "\nExtended help:\n  Each task has comments for general usage\n"
-}
-
-once_hash_array=()
-function _once {
-  # Run a command only once during the execution of this script, even if it's
-  # called multiple times.
-  #
-  # Usage:
-  #   _once <command> [argument ...]
-  #
-  # Example:
-  #   _once echo "Hello"
-  #   _once echo "Hello"  # won't be executed
-
-  local command="$*"
-  local hash=$(echo "$command" | shasum | cut -d' ' -f1)
-  if [[ ! " ${once_hash_array[@]} " =~ " ${hash} " ]]; then
-    once_hash_array+=("$hash")
-    eval "$command"
-  fi
-}
-
-compose_flags=""
-function _dc {
-  docker compose $compose_flags "$@"
-}
-
-function _env {
-  echo "🗝️ Setting environment from .env and .env.defaults"
-  # Go through the files and export all variables not already present in
-  # the environment. First file has precedence!
-  if [ -f .env ]; then
-    _export_unset .env
-  else
-    # Make sure a .env file exists, otherwise docker-compose will complain
-    cp .env.defaults .env
-  fi
-  _export_unset .env.defaults
-}
-
-function _export_unset {
-  local file="$1"
-
-  # Need to use a temp file to avoid a subshell
-  local tmpfile=$(mktemp)
-  grep -v '^#' $file > $tmpfile
-
-  while read -r line; do
-    if [[ ! "$line" =~ ^[[:space:]]*$ ]]; then
-      varname=$(echo "$line" | cut -d= -f1)
-      if [[ -z "${!varname:-}" ]]; then
-        eval $line
-        export $varname
-      fi
-    fi
-  done < $tmpfile
-  rm $tmpfile
-}
-
-function _test_export_unset {
-  _export_unset .env
-  env | sort
-}
-
-################################################################################
 # Project-specific commands follow.
 
 function uv-download {
   # Download the latest version of uv.
   curl -LsSf https://astral.sh/uv/install.sh | sh
-}
-
-function poetry-remove {
-  # Remove poetry from the system.
-  curl -sSL https://install.python-poetry.org | python3 - --uninstall
 }
 
 function install {
@@ -190,6 +111,15 @@ function build-remove {
   rm -rf build/
 }
 
+function update-bindings {
+  # Update the bindings for the project.
+  rm -rf src/halpi2_fw_i2c_postcard
+  pushd ../halpi2-rs-firmware
+  ./run generate-bindings
+  popd
+  cp -a ../halpi2-rs-firmware/halpi2-fw-i2c-postcard/src/halpi2_fw_i2c_postcard src/
+}
+
 function clean {
   # Remove all temporary files and directories.
   pycache-remove
@@ -203,6 +133,82 @@ function clean {
 
 ################################################################################
 # Commands end.
+
+
+################################################################################
+# Meta-commands and utilities follow.
+
+function help {
+  # list all "public" functions (those not beginning with an underscore)
+  # defined in this file
+  printf "%s <task> [args]\n\nTasks:\n" "${0}"
+  compgen -A function | grep -v "^_" | cat -n
+
+  printf "\nExtended help:\n  Each task has comments for general usage\n"
+}
+
+once_hash_array=()
+function _once {
+  # Run a command only once during the execution of this script, even if it's
+  # called multiple times.
+  #
+  # Usage:
+  #   _once <command> [argument ...]
+  #
+  # Example:
+  #   _once echo "Hello"
+  #   _once echo "Hello"  # won't be executed
+
+  local command="$*"
+  local hash=$(echo "$command" | shasum | cut -d' ' -f1)
+  if [[ ! " ${once_hash_array[@]} " =~ " ${hash} " ]]; then
+    once_hash_array+=("$hash")
+    eval "$command"
+  fi
+}
+
+compose_flags=""
+function _dc {
+  docker compose $compose_flags "$@"
+}
+
+function _env {
+  echo "🗝️ Setting environment from .env and .env.defaults"
+  # Go through the files and export all variables not already present in
+  # the environment. First file has precedence!
+  if [ -f .env ]; then
+    _export_unset .env
+  else
+    # Make sure a .env file exists, otherwise docker-compose will complain
+    cp .env.defaults .env
+  fi
+  _export_unset .env.defaults
+}
+
+function _export_unset {
+  local file="$1"
+
+  # Need to use a temp file to avoid a subshell
+  local tmpfile=$(mktemp)
+  grep -v '^#' $file > $tmpfile
+
+  while read -r line; do
+    if [[ ! "$line" =~ ^[[:space:]]*$ ]]; then
+      varname=$(echo "$line" | cut -d= -f1)
+      if [[ -z "${!varname:-}" ]]; then
+        eval $line
+        export $varname
+      fi
+    fi
+  done < $tmpfile
+  rm $tmpfile
+}
+
+function _test_export_unset {
+  _export_unset .env
+  env | sort
+}
+
 
 # Dispatch to command. A simpler version would be just "$@" (with the quotes!).
 

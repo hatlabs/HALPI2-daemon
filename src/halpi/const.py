@@ -15,4 +15,4 @@ DEFAULT_BLACKOUT_VOLTAGE_LIMIT = 9.0
 
 # Daemon version
 
-VERSION = "2.2.6"
+VERSION = "0.1.0"
