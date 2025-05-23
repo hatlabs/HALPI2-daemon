@@ -115,7 +115,11 @@ async def async_main():
     i2c_addr = args.i2c_addr
 
     try:
+        logger.info(
+            f"Connecting to HALPI device at I2C bus {i2c_bus}, address {i2c_addr:#02x}"
+        )
         halpi_device = HALPIDevice.factory(i2c_bus, i2c_addr)
+        logger.debug("HALPIDevice created successfully")
     except DeviceNotFoundError as e:
         logger.error(f"Error: {e}")
         sys.exit(1)

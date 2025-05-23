@@ -16,13 +16,17 @@ async def run_state_machine(
 ) -> None:
     state = "START"
     blackout_time = 0.0
+    dcin_voltage = 0.0
 
     while True:
         # TODO: Provide facilities for reporting the states and voltages
         # en5v_state = dev.en5v_state()
         # dev_state = dev.state()
-        dcin_voltage = halpi_device.dcin_voltage()
-        # supercap_voltage = dev.supercap_voltage()
+        try:
+            # Read the DC input voltage from the HALPI device
+            dcin_voltage = halpi_device.dcin_voltage()
+        except Exception as e:
+            logger.error(f"Failed to read DC input voltage: {e}")
 
         if state == "START":
             halpi_device.set_watchdog_timeout(10)
@@ -54,4 +58,4 @@ async def run_state_machine(
         elif state == "DEAD":
             # just wait for the inevitable
             pass
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(1.0)

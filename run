@@ -130,6 +130,12 @@ function clean {
   build-remove
 }
 
+function push {
+  rsync -avP --delete --exclude='*.egg-info' \
+    --exclude='__pycache__' --exclude='.DS_Store' \
+    --exclude='.mypy_cache' --exclude='.ipynb_checkpoints' \
+    --exclude='.pytest_cache' --exclude='.venv' . halpi2:src/halpid/
+}
 
 ################################################################################
 # Commands end.

@@ -202,6 +202,38 @@ class RouteHandlers:
 
         return web.json_response(value)
 
+    async def post_firmware_update(self, request: web.Request) -> web.Response:
+        """Update the firmware."""
+        # Get the firmware data from the request body.
+        data = await request.post()
+        firmware_data = data["firmware"].file  # type: ignore
+        if not firmware_data:
+            return web.Response(status=400, text="No firmware data provided")
+        # Check if the firmware data is empty.
+        if not firmware_data:
+            return web.Response(status=400, text="Firmware data is empty")
+        # Read the firmware data into a bytes object.
+        firmware_data = firmware_data.read()
+
+        logger.info(
+            f"Starting firmware update process, size {len(firmware_data)} bytes"
+        )
+
+        result = self.halpi_device.upload_firmware_with_progress(
+            firmware_data,  # The firmware data to upload
+            progress_callback=lambda progress, total: logger.debug(
+                f"Upload progress: {progress}/{total} blocks ({(progress / total) * 100:.2f}%)"
+            ),
+        )
+
+        if result is True:
+            logger.info("Firmware upload completed successfully")
+            return web.Response(status=204)
+        else:
+            error_message = "Firmware upload failed"
+            logger.error(error_message)
+            return web.Response(status=500, text=error_message)
+
 
 async def run_http_server(
     halpi_device: halpi.i2c.HALPIDevice,
@@ -226,6 +258,7 @@ async def run_http_server(
             web.put("/config/{key}", handlers.put_config_key),
             web.get("/values", handlers.get_values),
             web.get("/values/{key}", handlers.get_values_key),
+            web.post("/flash", handlers.post_firmware_update),
         ]
     )
 

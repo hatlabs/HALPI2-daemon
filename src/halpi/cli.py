@@ -143,6 +143,37 @@ def sleep(
     asyncio.run(async_sleep(state["socket"], time_dict))
 
 
+async def async_flash_firmware(
+    socket_path: pathlib.Path, firmware: pathlib.Path
+) -> None:
+    """Flash firmware to the device."""
+    connector = aiohttp.UnixConnector(path=str(socket_path))
+    async with aiohttp.ClientSession(connector=connector) as session:
+        with open(firmware, "rb") as f:
+            url = "http://localhost:8080/flash"
+            data = aiohttp.FormData()
+            filename = firmware.name
+            data.add_field("firmware", f, filename=filename)
+            response = await session.post(url, data=data)
+            if response.status != 204:
+                console.print(
+                    f"Error: Received HTTP status {response.status}", style="red"
+                )
+
+
+@app.command("flash")
+def flash_firmware(
+    firmware_file: pathlib.Path = typer.Argument(
+        ...,
+        help="Path to the firmware file to flash.",
+    ),
+) -> None:
+    """
+    Flash firmware to the device.
+    """
+    asyncio.run(async_flash_firmware(state["socket"], firmware_file))
+
+
 set_app = typer.Typer(help="Set configuration values.")
 
 
