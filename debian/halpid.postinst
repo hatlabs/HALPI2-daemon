@@ -1,0 +1,26 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        # Create necessary directories
+        mkdir -p /var/lib/halpid
+        mkdir -p /var/log/halpid
+        chown root:adm /var/lib/halpid /var/log/halpid
+
+        # Set permissions on config
+        chown root:adm /etc/halpid.conf
+        chmod 640 /etc/halpid.conf
+
+        # Reload systemd and enable service
+        systemctl daemon-reload
+        systemctl enable halpid.service
+
+        # Start service if this is a fresh install
+        if [ -z "$2" ]; then
+            systemctl start halpid.service
+        fi
+        ;;
+esac
+
+#DEBHELPER#

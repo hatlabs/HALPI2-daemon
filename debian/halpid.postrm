@@ -1,0 +1,16 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    purge)
+        rm -rf /var/lib/halpid
+        rm -rf /var/log/halpid
+        rm -f /etc/halpid.conf
+        ;;
+    remove)
+        systemctl stop halpid.service || true
+        systemctl disable halpid.service || true
+        ;;
+esac
+
+#DEBHELPER#

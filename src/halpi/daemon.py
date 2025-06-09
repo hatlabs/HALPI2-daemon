@@ -33,6 +33,9 @@ def read_config_files(parser: argparse.ArgumentParser, paths: List[str]) -> None
 
                 # Replace dashes with underscores in config keys
                 config_: Dict[str, Any] = {}
+                if config is None:
+                    logger.debug(f"Config file {path} is empty, skipping")
+                    continue
                 for key, value in config.items():
                     config_[key.replace("-", "_")] = value
                 parser.set_defaults(**config_)
@@ -47,7 +50,9 @@ def read_config_files(parser: argparse.ArgumentParser, paths: List[str]) -> None
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--i2c-bus", type=int, default=I2C_BUS, help="I2C bus number")
-    parser.add_argument("--i2c-addr", type=int, default=I2C_ADDR, help="I2C address")
+    parser.add_argument(
+        "--i2c-addr", type=lambda x: int(x, 0), default=I2C_ADDR, help="I2C address"
+    )
     parser.add_argument(
         "--blackout-time-limit",
         type=float,
