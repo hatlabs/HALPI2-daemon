@@ -29,7 +29,7 @@ def read_config_files(parser: argparse.ArgumentParser, paths: List[str]) -> None
     for path in paths:
         try:
             with open(path) as f:
-                config: Dict[str, Any] = yaml.safe_load(f)
+                config: Dict[str, Any] | None = yaml.safe_load(f)
 
                 # Replace dashes with underscores in config keys
                 config_: Dict[str, Any] = {}
