@@ -65,14 +65,14 @@ function mypy {
 function lint {
   uv run ruff check src
   uv run ruff format --check src
-  mypy  # Call mypy function
+  mypy # Call mypy function
 }
 
 function docker-build {
   # Build the Docker image.
   echo Building docker $(DOCKER_IMAGE):$(DOCKER_VERSION) ...
   docker build -t ${DOCKER_IMAGE}:${DOCKER_VERSION} . \
-		-f ./docker/Dockerfile --no-cache
+    -f ./docker/Dockerfile --no-cache
 }
 
 function docker-remove {
@@ -130,24 +130,15 @@ function clean {
   build-remove
 }
 
+# Retrieve the latest code from the remote server.
 function push {
-  rsync -avP --delete --exclude='*.egg-info' \
-    --exclude='__pycache__' --exclude='.DS_Store' \
-    --exclude='.mypy_cache' --exclude='.ipynb_checkpoints' \
-    --exclude='.pytest_cache' --exclude='.venv' . halpi2:src/halpid/
+  rsync -avP --delete --exclude-from='.gitignore' \
+    --exclude='.venv' . halpi2:src/halpid/
 }
 
 function pull {
-  # Retrieve the latest code from the remote server.
-  function push {
-    rsync -avP --delete --exclude-from='.gitignore' \
-      --exclude='.venv' . halpi2:src/halpid/
-  }
-
-  function pull {
-    rsync -avP --delete --exclude-from='.gitignore' \
-      --exclude='.venv' halpi2:src/halpid/ .
-  }
+  rsync -avP --delete --exclude-from='.gitignore' \
+    --exclude='.venv' halpi2:src/halpid/ .
 }
 
 function build-debian {
@@ -157,7 +148,6 @@ function build-debian {
 
 ################################################################################
 # Commands end.
-
 
 ################################################################################
 # Meta-commands and utilities follow.
@@ -214,7 +204,7 @@ function _export_unset {
 
   # Need to use a temp file to avoid a subshell
   local tmpfile=$(mktemp)
-  grep -v '^#' $file > $tmpfile
+  grep -v '^#' $file >$tmpfile
 
   while read -r line; do
     if [[ ! "$line" =~ ^[[:space:]]*$ ]]; then
@@ -224,7 +214,7 @@ function _export_unset {
         export $varname
       fi
     fi
-  done < $tmpfile
+  done <$tmpfile
   rm $tmpfile
 }
 
@@ -232,7 +222,6 @@ function _test_export_unset {
   _export_unset .env
   env | sort
 }
-
 
 # Dispatch to command. A simpler version would be just "$@" (with the quotes!).
 

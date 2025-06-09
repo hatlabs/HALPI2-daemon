@@ -1,5 +1,13 @@
-halpid (3.0.0-1) UNRELEASED; urgency=low
+halpid (3.0.0-2) unstable; urgency=medium
 
+  [ matti.airas@hatlabs.fi ]
+  * Add the halpi command line interface to /usr/bin
+
+ --  <matti.airas@hatlabs.fi>  Mon, 09 Jun 2025 18:54:23 +0300
+
+halpid (3.0.0-1) unstable; urgency=low
+
+  [ matti.airas@hatlabs.fi ]
   * Initial release.
 
- --  <matti.airas@hatlabs.fi>  Mon, 09 Jun 2025 16:34:08 +0300
+ --  <matti.airas@hatlabs.fi>  Mon, 09 Jun 2025 18:51:53 +0300
