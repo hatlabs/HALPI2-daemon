@@ -137,6 +137,24 @@ function push {
     --exclude='.pytest_cache' --exclude='.venv' . halpi2:src/halpid/
 }
 
+function pull {
+  # Retrieve the latest code from the remote server.
+  function push {
+    rsync -avP --delete --exclude-from='.gitignore' \
+      --exclude='.venv' . halpi2:src/halpid/
+  }
+
+  function pull {
+    rsync -avP --delete --exclude-from='.gitignore' \
+      --exclude='.venv' halpi2:src/halpid/ .
+  }
+}
+
+function build-debian {
+  echo "Building Debian package..."
+  dpkg-buildpackage -us -uc
+}
+
 ################################################################################
 # Commands end.
 

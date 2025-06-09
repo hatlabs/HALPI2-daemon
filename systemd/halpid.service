@@ -6,9 +6,10 @@ StartLimitIntervalSec=0
 [Service]
 Type=simple
 Restart=always
-RestartSec=1
+RestartSec=3
 User=root
-ExecStart=/usr/local/bin/halpid -s /var/run/halpid.sock
+ExecStart=/opt/venvs/halpid/bin/halpid -s /var/run/halpid.sock
+Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+Source: halpid
+Section: admin
+Priority: important
+Maintainer: Matti Airas <matti.airas@hatlabs.fi>
+Build-Depends:
+  debhelper-compat (= 13),
+  dh-virtualenv (>= 1.0.0),
+  python3-dev,
+  python3-venv,
+  python3-pip
+Standards-Version: 4.6.0
+
+Package: halpid
+Architecture: any
+Pre-Depends: dpkg (>= 1.16.1), python3 (>= 3.11), ${misc:Pre-Depends}
+Depends: ${python3:Depends}, ${misc:Depends}, python3-venv
+Description: HALPI2 service daemon
+ `halpid` is a power monitor and watchdog service for HALPI2. It communicates
+ with the HALPI2 controller, providing the "smart" aspects of the operation.
+ .
+ The main use case for the service software is to have the Raspberry Pi
+ Operating System shut down once the power is cut. This prevents potential
+ file system corruption without having to shut down the device manually.

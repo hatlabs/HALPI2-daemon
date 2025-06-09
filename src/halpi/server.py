@@ -222,7 +222,8 @@ class RouteHandlers:
         result = self.halpi_device.upload_firmware_with_progress(
             firmware_data,  # The firmware data to upload
             progress_callback=lambda progress, total: logger.debug(
-                f"Upload progress: {progress}/{total} blocks ({(progress / total) * 100:.2f}%)"
+                f"Upload progress: {progress}/{total} "
+                f"blocks ({(progress / total) * 100:.2f}%)"
             ),
         )
 

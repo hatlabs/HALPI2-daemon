@@ -2,7 +2,7 @@ import binascii
 import struct
 import time
 from enum import Enum
-from typing import Sequence
+from typing import Callable, Sequence
 
 from loguru import logger
 from smbus2 import SMBus, i2c_msg
@@ -76,6 +76,7 @@ class HALPIDevice:
         with SMBus(self.bus) as bus:
             bus.i2c_rdwr(reg_msg, read_msg)
         b = list(read_msg)[0]  # type: ignore
+        assert type(b) is int, "Expected a single byte response"
         return b
 
     def i2c_query_bytes(self, reg: int, n: int) -> list[int]:
@@ -83,7 +84,7 @@ class HALPIDevice:
         read_msg = i2c_msg.read(self.addr, n)
         with SMBus(self.bus) as bus:
             bus.i2c_rdwr(reg_msg, read_msg)
-        response = list(read_msg)  # type: ignore
+        response: list[int] = list(read_msg)  # type: ignore
         return response
 
     def i2c_query_word(self, reg: int) -> int:
@@ -93,6 +94,7 @@ class HALPIDevice:
             bus.i2c_rdwr(reg_msg, read_msg)
         byte_vals = list(read_msg)  # type: ignore
         w = (byte_vals[0] << 8) | byte_vals[1]
+        assert type(w) is int, "Expected a word response"
         return w
 
     def i2c_write_byte(self, reg: int, val: int) -> None:
@@ -353,7 +355,9 @@ class HALPIDevice:
         return False
 
     def upload_firmware_with_progress(
-        self, firmware_data: bytes, progress_callback=None
+        self,
+        firmware_data: bytes,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> bool:
         """
         Upload firmware with progress tracking and error handling.
