@@ -146,6 +146,10 @@ function build-debian {
   dpkg-buildpackage -us -uc
 }
 
+function debian-builder {
+  docker compose run --rm debian-builder
+}
+
 ################################################################################
 # Commands end.
 

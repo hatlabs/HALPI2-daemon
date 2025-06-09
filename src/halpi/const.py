@@ -1,5 +1,5 @@
 # Config file for HALPI daemon
-CONFIG_FILE_LOCATION = "/etc/halpid.conf"
+CONFIG_FILE_LOCATION = "/etc/halpid/halpid.conf"
 
 # Default I2C bus for Raspberry Pi
 I2C_BUS = 1

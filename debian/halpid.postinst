@@ -9,8 +9,8 @@ case "$1" in
         chown root:adm /var/lib/halpid /var/log/halpid
 
         # Set permissions on config
-        chown root:adm /etc/halpid.conf
-        chmod 640 /etc/halpid.conf
+        chown root:adm /etc/halpid/halpid.conf
+        chmod 640 /etc/halpid/halpid.conf
 
         # Reload systemd and enable service
         systemctl daemon-reload

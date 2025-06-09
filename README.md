@@ -28,13 +28,7 @@ TBD
 ## Configuration
 
 The `halpid` daemon can be configured using a configuration file.
-The default configuration file location is `/etc/halpid.conf`.
-Note that no configuration file is created by default.
-Instead, you need to create one at the given location.
-The configuration file is in YAML format.
-The configuration keys are the same as daemon command line arguments that can be seen by issuing the following command:
-
-    halpid --help
+The default configuration file location is `/etc/halpid/halpid.conf`.
 
 For example, if you want to change the blackout time limit to 10 seconds andthe poweroff command to `/home/pi/bin/custom-poweroff`, you can edit the configuration file as follows:
 

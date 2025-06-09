@@ -1,3 +1,9 @@
+halpid (3.0.0-3) UNRELEASED; urgency=medium
+
+  * Move config file to /etc/halpid
+
+ --  <builder@e3496bf6ed87>  Mon, 09 Jun 2025 18:12:31 +0000
+
 halpid (3.0.0-2) unstable; urgency=medium
 
   [ matti.airas@hatlabs.fi ]

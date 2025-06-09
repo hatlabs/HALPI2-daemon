@@ -14,6 +14,7 @@ Package: halpid
 Architecture: any
 Pre-Depends: dpkg (>= 1.16.1), python3 (>= 3.11), ${misc:Pre-Depends}
 Depends: ${python3:Depends}, ${misc:Depends}, python3-venv
+Recommends: halpi-firmware
 Description: HALPI2 service daemon
  `halpid` is a power monitor and watchdog service for HALPI2. It communicates
  with the HALPI2 controller, providing the "smart" aspects of the operation.
