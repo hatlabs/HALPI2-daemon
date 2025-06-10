@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.debtools
+    env_file: ../.env
     environment:
       - DIR_NAME=${DIR_NAME}
     volumes:
