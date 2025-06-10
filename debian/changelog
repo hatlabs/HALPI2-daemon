@@ -1,3 +1,9 @@
+halpid (3.0.2) unstable; urgency=medium
+
+  * Build for arm64 in GitHub workflow 
+
+ -- Matti Airas <matti.airas@hatlabs.fi>  Tue, 10 Jun 2025 14:02:15 +0000
+
 halpid (3.0.1-1) unstable; urgency=medium
 
   * Move config file to /etc/halpid
