@@ -174,6 +174,24 @@ def flash_firmware(
     asyncio.run(async_flash_firmware(state["socket"], firmware_file))
 
 
+async def async_firmware_version(socket_path: pathlib.Path) -> None:
+    """Get the firmware version from the device."""
+    connector = aiohttp.UnixConnector(path=str(socket_path))
+    async with aiohttp.ClientSession(connector=connector) as session:
+        response = await get_json(session, "http://localhost:8080/version")
+        if "firmware_version" in response:
+            console.print(f"Firmware version: {response['firmware_version']}")
+        else:
+            console.print("Error: Firmware version not found", style="red")
+            raise typer.Exit(code=1)
+
+
+@app.command("firmware-version")
+def firmware_version() -> None:
+    """Get the firmware version from the device."""
+    asyncio.run(async_firmware_version(state["socket"]))
+
+
 set_app = typer.Typer(help="Set configuration values.")
 
 

@@ -47,8 +47,8 @@ class HALPIDevice:
     def __init__(self, bus: int = 1, addr: int = 0x6D):
         self.bus = bus
         self.addr = addr
-        self._hardware_version = "Unknown"
-        self._firmware_version = "Unknown"
+        self._hardware_version = ""
+        self._firmware_version = ""
 
         # HALPI2 defaults
         self.vcap_max = 11.0
@@ -155,25 +155,28 @@ class HALPIDevice:
         self.i2c_write_word(reg, int(65536 * val / scale))
 
     def hardware_version(self) -> str:
-        if self._hardware_version != "Unknown":
+        if self._hardware_version != "":
             return self._hardware_version
 
         bytes = self.i2c_query_bytes(0x03, 4)
         values = list(bytes)
-        version_string = f"{values[0]}.{values[1]}.{values[2]}"
-        if values[3] != 0xFF:
-            version_string += f"-{values[3]}"
+        if values[0] == 0xFF:
+            version_string = "N/A"
+        else:
+            version_string = f"{values[0]}.{values[1]}.{values[2]}"
+            if values[3] != 0xFF:
+                version_string += f"-a{values[3]}"
         self._set_hardware_version(version_string)
         return version_string
 
     def firmware_version(self) -> str:
-        if self._firmware_version != "Unknown":
+        if self._firmware_version != "":
             return self._firmware_version
 
         bytes = list(self.i2c_query_bytes(0x04, 4))
         version_string = f"{bytes[0]}.{bytes[1]}.{bytes[2]}"
         if bytes[3] != 0xFF:
-            version_string += f"-{bytes[3]}"
+            version_string += f"-a{bytes[3]}"
         self._set_firmware_version(version_string)
         return version_string
 
