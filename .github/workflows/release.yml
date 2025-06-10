@@ -1,41 +1,57 @@
-name: Release to PyPI
+name: Build and Release Package
 
 on:
-  release:
-    types:
-      - released
+  push:
+    tags: ['v*']
 
 jobs:
-  deploy:
+  build-and-release:
     runs-on: ubuntu-latest
-    environment: release
-    permissions:
-      id-token: write
+    container: debian:bookworm
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.8'
+    - name: Install build dependencies
+      run: |
+        apt-get update
+        apt-get install -y \
+            debhelper \
+            dh-virtualenv \
+            dh-make \
+            devscripts \
+            build-essential \
+            python3-dev \
+            python3-venv \
+            python3-pip \
+            git \
+            vim \
+            && rm -rf /var/lib/apt/lists/*
 
-      - name: Install uv
-        run: ./run uv-download
 
+    - name: Build package
+      run: |
+        dpkg-buildpackage -us -uc
+        mkdir -p dist
+        mv ../*.deb dist/
 
-      - name: Set up cache
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/*.deb
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install dependencies
-        run: |
-          ./run install
-
-      - name: Build wheel
-        run: uv build
-
-      - name: Publish
-        uses: pypa/gh-action-pypi-publish@release/v1
+    - name: Trigger APT repository update
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.APT_REPO_PAT }}
+        repository: hatlabs/apt.hatlabs.fi
+        event-type: package-updated
+        client-payload: |
+          {
+            "package": "${{ github.event.repository.name }}",
+            "version": "${{ github.ref_name }}",
+            "repository": "${{ github.repository }}"
+          }
