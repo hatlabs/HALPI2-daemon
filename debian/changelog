@@ -1,8 +1,10 @@
-halpid (3.0.0-3) UNRELEASED; urgency=medium
+halpid (3.0.1-1) unstable; urgency=medium
 
   * Move config file to /etc/halpid
+  * Provide a firmware-version CLI sub-command
+  * Smarter handling of HW versions
 
- --  <builder@e3496bf6ed87>  Mon, 09 Jun 2025 18:12:31 +0000
+ -- Matti Airas <matti.airas@hatlabs.fi>  Tue, 10 Jun 2025 09:13:20 +0000
 
 halpid (3.0.0-2) unstable; urgency=medium
 
