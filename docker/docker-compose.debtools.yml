@@ -1,0 +1,16 @@
+services:
+  debtools:
+    build:
+      context: .
+      dockerfile: Dockerfile.debtools
+    environment:
+      - DIR_NAME=${DIR_NAME}
+    volumes:
+      - ../../:/workspace
+      - debian-build-cache:/var/cache/apt
+    working_dir: /workspace/${DIR_NAME}
+    stdin_open: true
+    tty: true
+
+volumes:
+  debian-build-cache:

@@ -146,8 +146,14 @@ function build-debian {
   dpkg-buildpackage -us -uc
 }
 
-function debian-builder {
-  docker compose run --rm debian-builder
+function debtools {
+  export DIR_NAME=$(basename "$PWD")
+  docker compose -f docker/docker-compose.debtools.yml run --rm debtools "$@"
+}
+
+function debtools-build {
+  # Build the Debian package using the debtools container.
+  debtools ./run build-debian
 }
 
 ################################################################################
@@ -200,7 +206,9 @@ function _env {
     # Make sure a .env file exists, otherwise docker-compose will complain
     cp .env.defaults .env
   fi
-  _export_unset .env.defaults
+  if [ -f .env.defaults ]; then
+    _export_unset .env.defaults
+  fi
 }
 
 function _export_unset {
