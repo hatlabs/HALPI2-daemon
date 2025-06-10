@@ -1,3 +1,9 @@
+halpid (3.0.3) unstable; urgency=medium
+
+  * Bump version to trigger an apt repo update.
+
+ -- Matti Airas <matti.airas@hatlabs.fi>  Tue, 10 Jun 2025 15:29:02 +0000
+
 halpid (3.0.2) unstable; urgency=medium
 
   * Build for arm64 in GitHub workflow 
