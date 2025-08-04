@@ -191,92 +191,87 @@ def firmware_version() -> None:
     asyncio.run(async_firmware_version(state["socket"]))
 
 
-set_app = typer.Typer(help="Set configuration values.")
-
-
-async def async_set_watchdog(socket_path: pathlib.Path, timeout: float) -> None:
-    """Set watchdog timeout in seconds. Value 0 disables the watchdog."""
+async def async_get_config(socket_path: pathlib.Path) -> Dict[str, Any]:
+    """Get all configuration from the device."""
     connector = aiohttp.UnixConnector(path=str(socket_path))
     async with aiohttp.ClientSession(connector=connector) as session:
-        response = await put_json(
-            session, "http://localhost:8080/config/watchdog_timeout", timeout
-        )
+        return await get_json(session, "http://localhost:8080/config")
+
+
+async def async_get_config_key(socket_path: pathlib.Path, key: str) -> Any:
+    """Get a specific configuration key from the device."""
+    connector = aiohttp.UnixConnector(path=str(socket_path))
+    async with aiohttp.ClientSession(connector=connector) as session:
+        return await get_json(session, f"http://localhost:8080/config/{key}")
+
+
+async def async_set_config_key(socket_path: pathlib.Path, key: str, value: Any) -> None:
+    """Set a specific configuration key on the device."""
+    connector = aiohttp.UnixConnector(path=str(socket_path))
+    async with aiohttp.ClientSession(connector=connector) as session:
+        response = await put_json(session, f"http://localhost:8080/config/{key}", value)
         if response != 204:
             console.print(f"Error: Received HTTP status {response}", style="red")
 
 
-@set_app.command("watchdog")
-def set_watchdog(timeout: float) -> None:
-    """
-    Set watchdog timeout in seconds. Value 0 disables the watchdog.
-    """
-    asyncio.run(async_set_watchdog(state["socket"], timeout))
-
-
-async def async_set_power_on_threshold(
-    socket_path: pathlib.Path, threshold: float
+@app.command("config")
+def config(
+    action: str = typer.Argument(None, help="Action: 'get' to retrieve a key, 'set' to set a key, or leave empty to show all"),
+    key: str = typer.Argument(None, help="Configuration key to get or set"),
+    value: str = typer.Argument(None, help="Value to set (only used with 'set' action)")
 ) -> None:
-    """Set power-on threshold in volts."""
-    connector = aiohttp.UnixConnector(path=str(socket_path))
-    async with aiohttp.ClientSession(connector=connector) as session:
-        response = await put_json(
-            session, "http://localhost:8080/config/power_on_threshold", threshold
-        )
-        if response != 204:
-            console.print(f"Error: Received HTTP status {response}", style="red")
+    """Get all configuration, get a specific config key, or set a config key value."""
+    if action is None:
+        # Show all config
+        config_data = asyncio.run(async_get_config(state["socket"]))
 
+        table = Table(show_header=True, box=None)
+        table.add_column("Key", style="bold")
+        table.add_column("Value", justify="right")
 
-@set_app.command("power-on-threshold")
-def set_power_on_threshold(threshold: float) -> None:
-    """
-    Set power-on threshold in volts.
-    """
-    asyncio.run(async_set_power_on_threshold(state["socket"], threshold))
+        for config_key, config_value in config_data.items():
+            table.add_row(config_key, str(config_value))
 
+        console.print(table)
+    elif action == "get":
+        if key is None:
+            console.print("Error: key is required when using 'get' action", style="red")
+            raise typer.Exit(code=1)
+        # Get specific key
+        try:
+            key_value = asyncio.run(async_get_config_key(state["socket"], key))
+            console.print(key_value)
+        except Exception as e:
+            console.print(f"Error getting config key '{key}': {e}", style="red")
+            raise typer.Exit(code=1)
+    elif action == "set":
+        if key is None or value is None:
+            console.print("Error: both key and value are required when using 'set' action", style="red")
+            raise typer.Exit(code=1)
+        # Set specific key
+        try:
+            # Try to convert value to appropriate type
+            # First try int, then float, fallback to string
+            try:
+                numeric_value = int(value)
+            except ValueError:
+                try:
+                    numeric_value = float(value)
+                except ValueError:
+                    # Check for boolean strings
+                    if value.lower() in ("true", "false"):
+                        numeric_value = value.lower() == "true"
+                    else:
+                        numeric_value = value
 
-async def async_set_power_off_threshold(
-    socket_path: pathlib.Path, threshold: float
-) -> None:
-    """Set power-off threshold in volts."""
-    connector = aiohttp.UnixConnector(path=str(socket_path))
-    async with aiohttp.ClientSession(connector=connector) as session:
-        response = await put_json(
-            session, "http://localhost:8080/config/power_off_threshold", threshold
-        )
-        if response != 204:
-            console.print(f"Error: Received HTTP status {response}", style="red")
-
-
-@set_app.command("power-off-threshold")
-def set_power_off_threshold(threshold: float) -> None:
-    """
-    Set power-off threshold in volts.
-    """
-    asyncio.run(async_set_power_off_threshold(state["socket"], threshold))
-
-
-async def async_set_led_brightness(
-    socket_path: pathlib.Path, brightness: float
-) -> None:
-    """Set LED brightness in percent."""
-    brightness_byte = int(brightness * 255 / 100)
-    connector = aiohttp.UnixConnector(path=str(socket_path))
-    async with aiohttp.ClientSession(connector=connector) as session:
-        response = await put_json(
-            session, "http://localhost:8080/config/led_brightness", brightness_byte
-        )
-        if response != 204:
-            console.print(f"Error: Received HTTP status {response}", style="red")
-
-
-@set_app.command("led")
-def set_led_brightness(brightness: float) -> None:
-    """
-    Set LED brightness in percent.
-    """
-    asyncio.run(async_set_led_brightness(state["socket"], brightness))
-
-
+            asyncio.run(async_set_config_key(state["socket"], key, numeric_value))
+            console.print(f"Set {key} to {value}")
+        except Exception as e:
+            console.print(f"Error setting config key '{key}': {e}", style="red")
+            raise typer.Exit(code=1)
+    else:
+        console.print(f"Error: unknown action '{action}'. Use 'get' or 'set'", style="red")
+        raise typer.Exit(code=1)
 @app.callback()
 def callback(
     socket: pathlib.Path = typer.Option(
@@ -286,9 +281,6 @@ def callback(
     """HALPI command line interface communicates with the halpid daemon and
     allows the user to observe and control the device."""
     state["socket"] = socket
-
-
-app.add_typer(set_app, name="set")
 
 
 def main():
