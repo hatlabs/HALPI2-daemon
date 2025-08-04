@@ -21,18 +21,21 @@ class DFUState(Enum):
     WRITE_ERROR = 7
     PROTOCOL_ERROR = 8
 
+# Numbers must correspond to the values in the HALPI2 firmware
 
 class States(Enum):
-    BEGIN = 0
-    WAIT_FOR_POWER_ON = 1
-    POWER_ON_5V_OFF = 3
-    POWER_ON_5V_ON = 5
-    POWER_OFF_5V_ON = 7
-    SHUTDOWN = 9
-    WATCHDOG_REBOOT = 11
-    OFF = 13
-    SLEEP_SHUTDOWN = 15
-    SLEEP = 17
+    OffNoVin = 0,
+    OffCharging = 1,
+    Booting = 2,
+    OnSolo = 3,
+    OnCoOp = 4,
+    DepletingSolo = 5,
+    DepletingCoOp = 6,
+    Shutdown = 7,
+    Off = 8,
+    WatchdogAlert = 9,
+    StandbyShutdown = 10,
+    Standby = 11,
 
 
 class DeviceNotFoundError(Exception):
