@@ -7,6 +7,8 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+import halpi.const
+
 """HALPI2 command line interface communicates with the halpid daemon and
 allows the user to observe and control the device."""
 
@@ -59,27 +61,17 @@ async def async_print_all(socket_path: pathlib.Path) -> None:
         table.add_column("Value", justify="right")
         table.add_column("Unit")
 
-        table.add_row("Hardware version", str(version["hardware_version"]), "")
-        table.add_row("Firmware version", str(version["firmware_version"]), "")
-        table.add_row("Daemon version", str(version["daemon_version"]), "")
+        table.add_row("Hardware version", str(values["hardware_version"]), "")
+        table.add_row("Firmware version", str(values["firmware_version"]), "")
+        table.add_row("Daemon version", str(version_data["daemon_version"]), "")
         table.add_section()
 
         table.add_row("State", str(values["state"]), "")
         table.add_row("5V output", str(values["5v_output_enabled"]), "")
         table.add_row("Watchdog enabled", str(values["watchdog_enabled"]), "")
         if values["watchdog_enabled"]:
+            table.add_row("Watchdog timeout", f"{values['watchdog_timeout']:.1f}", "s")
             table.add_row("Watchdog elapsed", f"{values['watchdog_elapsed']:.1f}", "s")
-        table.add_section()
-
-        table.add_row("Watchdog timeout", f"{config['watchdog_timeout']:.1f}", "s")
-        table.add_row("Power-on threshold", f"{config['power_on_threshold']:.1f}", "V")
-        table.add_row(
-            "Power-off threshold", f"{config['power_off_threshold']:.1f}", "V"
-        )
-        if config["led_brightness"] is not None:
-            table.add_row(
-                "LED brightness", f"{100 * config['led_brightness'] / 255:.1f}", "%"
-            )
         table.add_section()
 
         table.add_row("Voltage in", f"{values['V_in']:.1f}", "V")
@@ -192,6 +184,12 @@ def firmware_version() -> None:
     asyncio.run(async_firmware_version(state["socket"]))
 
 
+@app.command("version")
+def version() -> None:
+    """Get the CLI version."""
+    console.print(halpi.const.VERSION)
+
+
 async def async_get_config(socket_path: pathlib.Path) -> Dict[str, Any]:
     """Get all configuration from the device."""
     connector = aiohttp.UnixConnector(path=str(socket_path))
@@ -222,7 +220,7 @@ async def async_get_value_key(socket_path: pathlib.Path, key: str) -> Any:
 
 @app.command("get")
 def get(
-    measurement: str = typer.Argument(..., help="Measurement to retrieve (e.g., V_in, V_supercap, I_in, T_mcu, state, 5v_output_enabled, watchdog_enabled, watchdog_timeout, watchdog_elapsed)")
+    measurement: str = typer.Argument(..., help="Measurement to retrieve (e.g., V_in, V_supercap, I_in, T_mcu, state, 5v_output_enabled, watchdog_enabled, watchdog_timeout, watchdog_elapsed, hardware_version, firmware_version)")
 ) -> None:
     """Get individual measurements and runtime values."""
     try:

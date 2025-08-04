@@ -24,14 +24,10 @@ class RouteHandlers:
         return web.Response(text="This is halpid!\n")
 
     async def get_version(self, request: web.Request) -> web.Response:
-        """Get the hardware and firmware version numbers."""
-        hw_version = self.halpi_device.hardware_version()
-        fw_version = self.halpi_device.firmware_version()
+        """Get the daemon version."""
         daemon_version = halpi.const.VERSION
 
         response = {
-            "hardware_version": hw_version,
-            "firmware_version": fw_version,
             "daemon_version": daemon_version,
         }
 
@@ -169,6 +165,11 @@ class RouteHandlers:
         watchdog_enabled = bool(watchdog_timeout)
         watchdog_elapsed = self.halpi_device.watchdog_elapsed()
 
+        # Include version information
+        hw_version = self.halpi_device.hardware_version()
+        fw_version = self.halpi_device.firmware_version()
+        daemon_version = halpi.const.VERSION
+
         values = {
             "V_in": dcin_voltage,
             "V_supercap": supercap_voltage,
@@ -179,6 +180,9 @@ class RouteHandlers:
             "watchdog_enabled": watchdog_enabled,
             "watchdog_timeout": watchdog_timeout,
             "watchdog_elapsed": watchdog_elapsed,
+            "hardware_version": hw_version,
+            "firmware_version": fw_version,
+            "daemon_version": daemon_version,
         }
 
         return web.json_response(values)
@@ -205,6 +209,12 @@ class RouteHandlers:
             value = self.halpi_device.watchdog_timeout()
         elif key == "watchdog_elapsed":
             value = self.halpi_device.watchdog_elapsed()
+        elif key == "hardware_version":
+            value = self.halpi_device.hardware_version()
+        elif key == "firmware_version":
+            value = self.halpi_device.firmware_version()
+        elif key == "daemon_version":
+            value = halpi.const.VERSION
         else:
             return web.Response(status=404)
 
