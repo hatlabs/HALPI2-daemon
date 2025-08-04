@@ -218,7 +218,7 @@ class HALPIDevice:
     def request_shutdown(self):
         self.i2c_write_byte(0x30, 0x01)
 
-    def request_sleep(self):
+    def request_standby(self):
         self.i2c_write_byte(0x31, 0x01)
 
     def watchdog_elapsed(self):

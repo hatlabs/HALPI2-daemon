@@ -83,7 +83,7 @@ class RouteHandlers:
             asyncio.create_subprocess_exec("rtcwake", "-m", "no", "-t", str(timestamp))
         )
 
-        self.halpi_device.request_sleep()
+        self.halpi_device.request_standby()
 
         # From the OS point of view, this is a regular shutdown.
         asyncio.create_task(asyncio.create_subprocess_exec("shutdown", "-h", "now"))
