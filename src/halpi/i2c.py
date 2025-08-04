@@ -233,8 +233,11 @@ class HALPIDevice:
     def input_current(self) -> float:
         return self.read_analog_word(0x22, self.i_max)
 
-    def temperature(self) -> float:
-        return self.read_analog_word(0x23, self.temp_max)
+    def mcu_temperature(self) -> float:
+        return self.read_analog_word(0x23, self.temp_max - self.temp_min) + self.temp_min
+
+    def pcb_temperature(self) -> float:
+        return self.read_analog_word(0x24, self.temp_max - self.temp_min) + self.temp_min
 
     def start_firmware_update(self, total_size: int) -> None:
         """

@@ -156,7 +156,8 @@ class RouteHandlers:
         dcin_voltage = self.halpi_device.dcin_voltage()
         supercap_voltage = self.halpi_device.supercap_voltage()
         input_current = self.halpi_device.input_current()
-        mcu_temperature = self.halpi_device.temperature()
+        mcu_temperature = self.halpi_device.mcu_temperature()
+        pcb_temperature = self.halpi_device.pcb_temperature()
 
         # Include state variables as individual key-value pairs
         device_state = self.halpi_device.state()
@@ -175,6 +176,7 @@ class RouteHandlers:
             "V_supercap": supercap_voltage,
             "I_in": input_current,
             "T_mcu": mcu_temperature,
+            "T_pcb": pcb_temperature,
             "state": device_state,
             "5v_output_enabled": en5v_state,
             "watchdog_enabled": watchdog_enabled,
@@ -198,7 +200,9 @@ class RouteHandlers:
         elif key == "I_in":
             value = self.halpi_device.input_current()
         elif key == "T_mcu":
-            value = self.halpi_device.temperature()
+            value = self.halpi_device.mcu_temperature()
+        elif key == "T_pcb":
+            value = self.halpi_device.pcb_temperature()
         elif key == "state":
             value = self.halpi_device.state()
         elif key == "5v_output_enabled":

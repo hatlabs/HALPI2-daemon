@@ -74,6 +74,8 @@ async def async_print_status(socket_path: pathlib.Path) -> None:
         table.add_row("V_supercap", f"{values['V_supercap']:.2f}", "V")
         if values["T_mcu"] is not None:
             table.add_row("T_mcu", f"{values['T_mcu'] - 273.15:.1f}", "°C")
+        if values["T_pcb"] is not None:
+            table.add_row("T_pcb", f"{values['T_pcb'] - 273.15:.1f}", "°C")
 
         console.print(table)
 
