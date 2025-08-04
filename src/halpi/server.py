@@ -96,12 +96,14 @@ class RouteHandlers:
         power_on_threshold = self.halpi_device.power_on_threshold()
         power_off_threshold = self.halpi_device.power_off_threshold()
         led_brightness = self.halpi_device.led_brightness()
+        auto_restart = self.halpi_device.auto_restart()
 
         config = {
             "watchdog_timeout": watchdog_timeout,
             "power_on_threshold": power_on_threshold,
             "power_off_threshold": power_off_threshold,
             "led_brightness": led_brightness,
+            "auto_restart": auto_restart,
         }
 
         return web.json_response(config)
@@ -118,6 +120,8 @@ class RouteHandlers:
             value = self.halpi_device.power_off_threshold()
         elif key == "led_brightness":
             value = self.halpi_device.led_brightness()
+        elif key == "auto_restart":
+            value = self.halpi_device.auto_restart()
         else:
             return web.Response(status=404)
 
@@ -127,27 +131,36 @@ class RouteHandlers:
         """Set a configuration value."""
         key = request.match_info["key"]
 
-        data: float = await request.json()
+        data = await request.json()
 
-        # check that data is a number
-        if not isinstance(data, numbers.Number):
-            return web.Response(status=400, text="Value must be a number")
-
-        if key == "watchdog_timeout":
-            self.halpi_device.set_watchdog_timeout(float(data))
-        elif key == "power_on_threshold":
-            self.halpi_device.set_power_on_threshold(data)
-        elif key == "power_off_threshold":
-            self.halpi_device.set_power_off_threshold(data)
-        elif key == "led_brightness":
-            if self.halpi_device.firmware_version().startswith("1."):
-                return web.Response(
-                    status=400,
-                    text="LED brightness is not supported in hardware version 1.x",
-                )
-            self.halpi_device.set_led_brightness(int(data))
+        if key == "auto_restart":
+            # Handle boolean values for auto_restart
+            if isinstance(data, bool):
+                self.halpi_device.set_auto_restart(data)
+            elif isinstance(data, numbers.Number):
+                self.halpi_device.set_auto_restart(bool(data))
+            else:
+                return web.Response(status=400, text="Value must be a boolean or number")
         else:
-            return web.Response(status=404)
+            # check that data is a number for other config values
+            if not isinstance(data, numbers.Number):
+                return web.Response(status=400, text="Value must be a number")
+
+            if key == "watchdog_timeout":
+                self.halpi_device.set_watchdog_timeout(float(data))
+            elif key == "power_on_threshold":
+                self.halpi_device.set_power_on_threshold(data)
+            elif key == "power_off_threshold":
+                self.halpi_device.set_power_off_threshold(data)
+            elif key == "led_brightness":
+                if self.halpi_device.firmware_version().startswith("1."):
+                    return web.Response(
+                        status=400,
+                        text="LED brightness is not supported in hardware version 1.x",
+                    )
+                self.halpi_device.set_led_brightness(int(data))
+            else:
+                return web.Response(status=404)
 
         return web.Response(status=204)
 

@@ -230,6 +230,14 @@ class HALPIDevice:
     def set_led_brightness(self, brightness: int) -> None:
         self.i2c_write_byte(0x17, brightness)
 
+    def auto_restart(self) -> bool:
+        """Get the auto restart setting. True means auto restart is enabled."""
+        return bool(self.i2c_query_byte(0x18))
+
+    def set_auto_restart(self, enabled: bool) -> None:
+        """Set the auto restart setting. True enables auto restart."""
+        self.i2c_write_byte(0x18, 1 if enabled else 0)
+
     def input_current(self) -> float:
         return self.read_analog_word(0x22, self.i_max)
 
