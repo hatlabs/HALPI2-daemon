@@ -55,7 +55,7 @@ class HALPIDevice:
 
         # HALPI2 defaults
         self.vcap_max = 11.0
-        self.dcin_max = 33.0
+        self.dcin_max = 40.0
         self.i_max = 3.3
         self.temp_min = 273.15 - 40.0  # in Kelvin
         self.temp_max = 273.15 + 100.0  # in Kelvin
