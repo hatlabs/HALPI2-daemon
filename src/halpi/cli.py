@@ -43,15 +43,14 @@ async def put_json(session: aiohttp.ClientSession, url: str, data: Any) -> int:
         return resp.status
 
 
-async def async_print_all(socket_path: pathlib.Path) -> None:
-    """Print all data from the device."""
+async def async_print_status(socket_path: pathlib.Path) -> None:
+    """Print status and measurement data from the device."""
     connector = aiohttp.UnixConnector(path=str(socket_path))
     async with aiohttp.ClientSession(connector=connector) as session:
         coro1 = get_json(session, "http://localhost:8080/version")
-        coro2 = get_json(session, "http://localhost:8080/config")
-        coro3 = get_json(session, "http://localhost:8080/values")
-        version, config, values = await asyncio.gather(
-            coro1, coro2, coro3
+        coro2 = get_json(session, "http://localhost:8080/values")
+        version_data, values = await asyncio.gather(
+            coro1, coro2
         )
 
         # Print all gathered data in a neat table
@@ -84,10 +83,10 @@ async def async_print_all(socket_path: pathlib.Path) -> None:
         console.print(table)
 
 
-@app.command("print")
-def print_all() -> None:
-    """Print all data from the device."""
-    asyncio.run(async_print_all(state["socket"]))
+@app.command("status")
+def status() -> None:
+    """Print status and measurement data from the device."""
+    asyncio.run(async_print_status(state["socket"]))
 
 
 async def async_shutdown(socket_path: pathlib.Path) -> None:
