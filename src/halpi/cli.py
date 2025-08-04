@@ -47,11 +47,7 @@ async def async_print_status(socket_path: pathlib.Path) -> None:
     """Print status and measurement data from the device."""
     connector = aiohttp.UnixConnector(path=str(socket_path))
     async with aiohttp.ClientSession(connector=connector) as session:
-        coro1 = get_json(session, "http://localhost:8080/version")
-        coro2 = get_json(session, "http://localhost:8080/values")
-        version_data, values = await asyncio.gather(
-            coro1, coro2
-        )
+        values = await get_json(session, "http://localhost:8080/values")
 
         # Print all gathered data in a neat table
 
@@ -60,25 +56,24 @@ async def async_print_status(socket_path: pathlib.Path) -> None:
         table.add_column("Value", justify="right")
         table.add_column("Unit")
 
-        table.add_row("Hardware version", str(values["hardware_version"]), "")
-        table.add_row("Firmware version", str(values["firmware_version"]), "")
-        table.add_row("Daemon version", str(version_data["daemon_version"]), "")
+        table.add_row("hardware_version", str(values["hardware_version"]), "")
+        table.add_row("firmware_version", str(values["firmware_version"]), "")
         table.add_section()
 
-        table.add_row("State", str(values["state"]), "")
-        table.add_row("5V output", str(values["5v_output_enabled"]), "")
-        table.add_row("Watchdog enabled", str(values["watchdog_enabled"]), "")
+        table.add_row("state", str(values["state"]), "")
+        table.add_row("5v_output_enabled", str(values["5v_output_enabled"]), "")
+        table.add_row("watchdog_enabled", str(values["watchdog_enabled"]), "")
         if values["watchdog_enabled"]:
-            table.add_row("Watchdog timeout", f"{values['watchdog_timeout']:.1f}", "s")
-            table.add_row("Watchdog elapsed", f"{values['watchdog_elapsed']:.1f}", "s")
+            table.add_row("watchdog_timeout", f"{values['watchdog_timeout']:.1f}", "s")
+            table.add_row("watchdog_elapsed", f"{values['watchdog_elapsed']:.1f}", "s")
         table.add_section()
 
-        table.add_row("Voltage in", f"{values['V_in']:.1f}", "V")
+        table.add_row("V_in", f"{values['V_in']:.1f}", "V")
         if values["I_in"] is not None:
-            table.add_row("Current in", f"{values['I_in']:.2f}", "A")
-        table.add_row("Supercap voltage", f"{values['V_supercap']:.2f}", "V")
+            table.add_row("I_in", f"{values['I_in']:.2f}", "A")
+        table.add_row("V_supercap", f"{values['V_supercap']:.2f}", "V")
         if values["T_mcu"] is not None:
-            table.add_row("MCU temperature", f"{values['T_mcu'] - 273.15:.1f}", "°C")
+            table.add_row("T_mcu", f"{values['T_mcu'] - 273.15:.1f}", "°C")
 
         console.print(table)
 
