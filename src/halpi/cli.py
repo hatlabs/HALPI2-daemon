@@ -297,8 +297,9 @@ def config(
     else:
         console.print(f"Error: unknown action '{action}'. Use 'get' or 'set'", style="red")
         raise typer.Exit(code=1)
-@app.callback()
+@app.callback(invoke_without_command=True)
 def callback(
+    ctx: typer.Context,
     socket: pathlib.Path = typer.Option(
         pathlib.Path("/var/run/halpid.sock"), "--socket", "-s"
     ),
@@ -306,6 +307,11 @@ def callback(
     """HALPI command line interface communicates with the halpid daemon and
     allows the user to observe and control the device."""
     state["socket"] = socket
+
+    # If no command was provided, show help
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
+        raise typer.Exit()
 
 
 def main():
