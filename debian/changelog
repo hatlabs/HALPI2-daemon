@@ -1,3 +1,10 @@
+halpid (4.0.0) unstable; urgency=medium
+
+  * Refactor the command line interface
+  * Support additional configuration options and measurement values
+
+ -- Matti Airas <matti.airas@hatlabs.fi>  Mon, 4 Aug 2025 20:06:00 +0000
+
 halpid (3.0.3) unstable; urgency=medium
 
   * Bump version to trigger an apt repo update.
@@ -6,7 +13,7 @@ halpid (3.0.3) unstable; urgency=medium
 
 halpid (3.0.2) unstable; urgency=medium
 
-  * Build for arm64 in GitHub workflow 
+  * Build for arm64 in GitHub workflow
 
  -- Matti Airas <matti.airas@hatlabs.fi>  Tue, 10 Jun 2025 14:02:15 +0000
 
