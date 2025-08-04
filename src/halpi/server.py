@@ -37,20 +37,6 @@ class RouteHandlers:
 
         return web.json_response(response)
 
-    async def get_state(self, request: web.Request) -> web.Response:
-        """Get the current state of the device."""
-        state = self.halpi_device.state()
-        en5v_state = self.halpi_device.en5v_state()
-        watchdog_enabled = bool(self.halpi_device.watchdog_timeout())
-
-        response = {
-            "state": state,
-            "5v_output_enabled": en5v_state,
-            "watchdog_enabled": watchdog_enabled,
-        }
-
-        return web.json_response(response)
-
     async def post_shutdown(self, request: web.Request) -> web.Response:
         """Receive a shutdown request from the client."""
         self.halpi_device.request_shutdown()  # Inform the device about the shutdown
@@ -170,23 +156,35 @@ class RouteHandlers:
         return web.Response(status=204)
 
     async def get_values(self, request: web.Request) -> web.Response:
-        """Get measured values."""
+        """Get measured values and state variables."""
         dcin_voltage = self.halpi_device.dcin_voltage()
         supercap_voltage = self.halpi_device.supercap_voltage()
         input_current = self.halpi_device.input_current()
         mcu_temperature = self.halpi_device.temperature()
+
+        # Include state variables as individual key-value pairs
+        device_state = self.halpi_device.state()
+        en5v_state = self.halpi_device.en5v_state()
+        watchdog_timeout = self.halpi_device.watchdog_timeout()
+        watchdog_enabled = bool(watchdog_timeout)
+        watchdog_elapsed = self.halpi_device.watchdog_elapsed()
 
         values = {
             "V_in": dcin_voltage,
             "V_supercap": supercap_voltage,
             "I_in": input_current,
             "T_mcu": mcu_temperature,
+            "state": device_state,
+            "5v_output_enabled": en5v_state,
+            "watchdog_enabled": watchdog_enabled,
+            "watchdog_timeout": watchdog_timeout,
+            "watchdog_elapsed": watchdog_elapsed,
         }
 
         return web.json_response(values)
 
     async def get_values_key(self, request: web.Request) -> web.Response:
-        """Get a measured value."""
+        """Get a measured value or state variable."""
         key = request.match_info["key"]
 
         if key == "V_in":
@@ -197,6 +195,16 @@ class RouteHandlers:
             value = self.halpi_device.input_current()
         elif key == "T_mcu":
             value = self.halpi_device.temperature()
+        elif key == "state":
+            value = self.halpi_device.state()
+        elif key == "5v_output_enabled":
+            value = self.halpi_device.en5v_state()
+        elif key == "watchdog_enabled":
+            value = bool(self.halpi_device.watchdog_timeout())
+        elif key == "watchdog_timeout":
+            value = self.halpi_device.watchdog_timeout()
+        elif key == "watchdog_elapsed":
+            value = self.halpi_device.watchdog_elapsed()
         else:
             return web.Response(status=404)
 
@@ -251,7 +259,6 @@ async def run_http_server(
         [
             web.get("/", handlers.get_root),
             web.get("/version", handlers.get_version),
-            web.get("/state", handlers.get_state),
             web.post("/shutdown", handlers.post_shutdown),
             web.post("/standby", handlers.post_standby),
             web.get("/config", handlers.get_config),

@@ -46,11 +46,10 @@ async def async_print_all(socket_path: pathlib.Path) -> None:
     connector = aiohttp.UnixConnector(path=str(socket_path))
     async with aiohttp.ClientSession(connector=connector) as session:
         coro1 = get_json(session, "http://localhost:8080/version")
-        coro2 = get_json(session, "http://localhost:8080/state")
-        coro3 = get_json(session, "http://localhost:8080/config")
-        coro4 = get_json(session, "http://localhost:8080/values")
-        version, state, config, values = await asyncio.gather(
-            coro1, coro2, coro3, coro4
+        coro2 = get_json(session, "http://localhost:8080/config")
+        coro3 = get_json(session, "http://localhost:8080/values")
+        version, config, values = await asyncio.gather(
+            coro1, coro2, coro3
         )
 
         # Print all gathered data in a neat table
@@ -65,9 +64,11 @@ async def async_print_all(socket_path: pathlib.Path) -> None:
         table.add_row("Daemon version", str(version["daemon_version"]), "")
         table.add_section()
 
-        table.add_row("State", str(state["state"]), "")
-        table.add_row("5V output", str(state["5v_output_enabled"]), "")
-        table.add_row("Watchdog enabled", str(state["watchdog_enabled"]), "")
+        table.add_row("State", str(values["state"]), "")
+        table.add_row("5V output", str(values["5v_output_enabled"]), "")
+        table.add_row("Watchdog enabled", str(values["watchdog_enabled"]), "")
+        if values["watchdog_enabled"]:
+            table.add_row("Watchdog elapsed", f"{values['watchdog_elapsed']:.1f}", "s")
         table.add_section()
 
         table.add_row("Watchdog timeout", f"{config['watchdog_timeout']:.1f}", "s")
@@ -203,6 +204,33 @@ async def async_get_config_key(socket_path: pathlib.Path, key: str) -> Any:
     connector = aiohttp.UnixConnector(path=str(socket_path))
     async with aiohttp.ClientSession(connector=connector) as session:
         return await get_json(session, f"http://localhost:8080/config/{key}")
+
+
+async def async_get_values(socket_path: pathlib.Path) -> Dict[str, Any]:
+    """Get all values from the device."""
+    connector = aiohttp.UnixConnector(path=str(socket_path))
+    async with aiohttp.ClientSession(connector=connector) as session:
+        return await get_json(session, "http://localhost:8080/values")
+
+
+async def async_get_value_key(socket_path: pathlib.Path, key: str) -> Any:
+    """Get a specific value key from the device."""
+    connector = aiohttp.UnixConnector(path=str(socket_path))
+    async with aiohttp.ClientSession(connector=connector) as session:
+        return await get_json(session, f"http://localhost:8080/values/{key}")
+
+
+@app.command("get")
+def get(
+    measurement: str = typer.Argument(..., help="Measurement to retrieve (e.g., V_in, V_supercap, I_in, T_mcu, state, 5v_output_enabled, watchdog_enabled, watchdog_timeout, watchdog_elapsed)")
+) -> None:
+    """Get individual measurements and runtime values."""
+    try:
+        value = asyncio.run(async_get_value_key(state["socket"], measurement))
+        console.print(value)
+    except Exception as e:
+        console.print(f"Error getting measurement '{measurement}': {e}", style="red")
+        raise typer.Exit(code=1)
 
 
 async def async_set_config_key(socket_path: pathlib.Path, key: str, value: Any) -> None:
