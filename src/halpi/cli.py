@@ -107,40 +107,39 @@ async def async_shutdown(socket_path: pathlib.Path) -> None:
 
 
 @app.command("shutdown")
-def shutdown() -> None:
-    """Tell the device to shutdown."""
-    asyncio.run(async_shutdown(state["socket"]))
+def shutdown(
+    standby: bool = typer.Option(False, "--standby", help="Enter standby mode instead of shutdown"),
+    time: str = typer.Option(None, help="Wakeup time for standby mode (absolute datetime or delay in seconds)")
+) -> None:
+    """Tell the device to shutdown or enter standby mode."""
+    if standby:
+        if time is None:
+            console.print("Error: --time is required when using --standby", style="red")
+            raise typer.Exit(code=1)
+
+        time_dict = {}
+        # test if time is an integer
+        try:
+            int(time)
+            time_dict = {"delay": time}
+        except ValueError:
+            # assume time is an absolute time
+            time_dict = {"datetime": time}
+
+        asyncio.run(async_standby(state["socket"], time_dict))
+    else:
+        asyncio.run(async_shutdown(state["socket"]))
 
 
-async def async_sleep(socket_path: pathlib.Path, time: Dict[str, str]) -> None:
-    """Tell the device to sleep."""
+async def async_standby(socket_path: pathlib.Path, time: Dict[str, str]) -> None:
+    """Tell the device to enter standby mode."""
 
     connector = aiohttp.UnixConnector(path=str(socket_path))
     async with aiohttp.ClientSession(connector=connector) as session:
-        response = await post_json(session, "http://localhost:8080/sleep", time)
+        response = await post_json(session, "http://localhost:8080/standby", time)
         if response != 204:
             console.print(f"Error: Received HTTP status {response}", style="red")
 
-
-@app.command("sleep")
-def sleep(
-    time: str = typer.Argument(
-        ...,
-        help="Wakeup time, either as an absolute date and time, or a delay in seconds.",
-    ),
-) -> None:
-    """Tell the device to sleep."""
-
-    time_dict = {}
-    # test if time is an integer
-    try:
-        int(time)
-        time_dict = {"delay": time}
-    except ValueError:
-        # assume time is an absolute time
-        time_dict = {"datetime": time}
-
-    asyncio.run(async_sleep(state["socket"], time_dict))
 
 
 async def async_flash_firmware(

@@ -60,13 +60,13 @@ class RouteHandlers:
 
         return web.Response(status=204)
 
-    async def post_sleep(self, request: web.Request) -> web.Response:
-        """Receive a sleep request from the client."""
+    async def post_standby(self, request: web.Request) -> web.Response:
+        """Receive a standby request from the client."""
 
         if self.halpi_device.firmware_version().startswith("1."):
             return web.Response(
                 status=400,
-                text="Sleep mode is not supported in firmware version 1.x",
+                text="Standby mode is not supported in firmware version 1.x",
             )
 
         now = datetime.datetime.now()
@@ -253,7 +253,7 @@ async def run_http_server(
             web.get("/version", handlers.get_version),
             web.get("/state", handlers.get_state),
             web.post("/shutdown", handlers.post_shutdown),
-            web.post("/sleep", handlers.post_sleep),
+            web.post("/standby", handlers.post_standby),
             web.get("/config", handlers.get_config),
             web.get("/config/{key}", handlers.get_config_key),
             web.put("/config/{key}", handlers.put_config_key),
