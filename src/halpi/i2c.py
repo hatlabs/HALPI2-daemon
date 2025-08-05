@@ -24,17 +24,17 @@ class DFUState(Enum):
 # Numbers must correspond to the values in the HALPI2 firmware
 
 class States(Enum):
-    OffNoVin = 0
+    PowerOff = 0
     OffCharging = 1
-    Booting = 2
-    OnSolo = 3
-    OnCoOp = 4
-    DepletingSolo = 5
-    DepletingCoOp = 6
-    Shutdown = 7
-    Off = 8
-    WatchdogAlert = 9
-    StandbyShutdown = 10
+    SystemStartup = 2
+    OperationalSolo = 3
+    OperationalCoOp = 4
+    BlackoutSolo = 5
+    BlackoutCoOp = 6
+    GracefulShutdown = 7
+    PoweredDown = 8
+    HostUnresponsive = 9
+    EnteringStandby = 10
     Standby = 11
 
 
