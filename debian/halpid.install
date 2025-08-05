@@ -1,4 +1,3 @@
 systemd/halpid.service lib/systemd/system/
 config/halpid.conf etc/halpid/
-config/firmware.conf etc/halpid/
 scripts/halpi usr/bin/
