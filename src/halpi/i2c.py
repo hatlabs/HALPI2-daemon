@@ -21,7 +21,9 @@ class DFUState(Enum):
     WRITE_ERROR = 7
     PROTOCOL_ERROR = 8
 
+
 # Numbers must correspond to the values in the HALPI2 firmware
+
 
 class States(Enum):
     PowerOff = 0
@@ -242,7 +244,12 @@ class HALPIDevice:
         """Get the solo depleting timeout in seconds."""
         timeout_ms = self.i2c_query_bytes(0x19, 4)
         # Convert from big-endian bytes to u32, then to seconds
-        timeout_value = (timeout_ms[0] << 24) | (timeout_ms[1] << 16) | (timeout_ms[2] << 8) | timeout_ms[3]
+        timeout_value = (
+            (timeout_ms[0] << 24)
+            | (timeout_ms[1] << 16)
+            | (timeout_ms[2] << 8)
+            | timeout_ms[3]
+        )
         return timeout_value / 1000.0
 
     def set_solo_depleting_timeout(self, timeout: float) -> None:
@@ -253,7 +260,7 @@ class HALPIDevice:
             (timeout_ms >> 24) & 0xFF,
             (timeout_ms >> 16) & 0xFF,
             (timeout_ms >> 8) & 0xFF,
-            timeout_ms & 0xFF
+            timeout_ms & 0xFF,
         ]
         self.i2c_write_bytes(0x19, bytes_data)
 
@@ -261,10 +268,14 @@ class HALPIDevice:
         return self.read_analog_word(0x22, self.i_max)
 
     def mcu_temperature(self) -> float:
-        return self.read_analog_word(0x23, self.temp_max - self.temp_min) + self.temp_min
+        return (
+            self.read_analog_word(0x23, self.temp_max - self.temp_min) + self.temp_min
+        )
 
     def pcb_temperature(self) -> float:
-        return self.read_analog_word(0x24, self.temp_max - self.temp_min) + self.temp_min
+        return (
+            self.read_analog_word(0x24, self.temp_max - self.temp_min) + self.temp_min
+        )
 
     def start_firmware_update(self, total_size: int) -> None:
         """

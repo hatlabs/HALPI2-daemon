@@ -97,8 +97,13 @@ async def async_shutdown(socket_path: pathlib.Path) -> None:
 
 @app.command("shutdown")
 def shutdown(
-    standby: bool = typer.Option(False, "--standby", help="Enter standby mode instead of shutdown"),
-    time: str = typer.Option(None, help="Wakeup time for standby mode (absolute datetime or delay in seconds)")
+    standby: bool = typer.Option(
+        False, "--standby", help="Enter standby mode instead of shutdown"
+    ),
+    time: str | None = typer.Option(
+        None,
+        help="Wakeup time for standby mode (absolute datetime or delay in seconds)",
+    ),
 ) -> None:
     """Tell the device to shutdown or enter standby mode."""
     if standby:
@@ -130,7 +135,6 @@ async def async_standby(socket_path: pathlib.Path, time: Dict[str, str]) -> None
             console.print(f"Error: Received HTTP status {response}", style="red")
 
 
-
 async def async_flash_firmware(
     socket_path: pathlib.Path, firmware: pathlib.Path
 ) -> None:
@@ -146,7 +150,11 @@ async def async_flash_firmware(
             if response.status != 204:
                 error_text = await response.text()
                 console.print(
-                    f"Error: Firmware flashing failed with HTTP status {response.status}", style="red"
+                    (
+                        "Error: Firmware flashing failed with HTTP "
+                        f"status {response.status}"
+                    ),
+                    style="red",
                 )
                 if error_text:
                     console.print(f"Error details: {error_text}", style="red")
@@ -198,25 +206,31 @@ def version() -> None:
     console.print(halpi.const.VERSION)
 
 
-async def async_get_config(socket_path: pathlib.Path) -> Dict[str, Any]:
+async def async_get_config(socket_path: pathlib.Path) -> dict[str, Any]:
     """Get all configuration from the device."""
     connector = aiohttp.UnixConnector(path=str(socket_path))
     async with aiohttp.ClientSession(connector=connector) as session:
-        return await get_json(session, "http://localhost:8080/config")
+        result = await get_json(session, "http://localhost:8080/config")
+        assert isinstance(result, dict), "Expected a dictionary response"
+        return result
 
 
 async def async_get_config_key(socket_path: pathlib.Path, key: str) -> Any:
     """Get a specific configuration key from the device."""
     connector = aiohttp.UnixConnector(path=str(socket_path))
     async with aiohttp.ClientSession(connector=connector) as session:
-        return await get_json(session, f"http://localhost:8080/config/{key}")
+        result = await get_json(session, f"http://localhost:8080/config/{key}")
+        assert isinstance(result, dict), "Expected a dictionary response"
+        return result
 
 
-async def async_get_values(socket_path: pathlib.Path) -> Dict[str, Any]:
+async def async_get_values(socket_path: pathlib.Path) -> dict[str, Any]:
     """Get all values from the device."""
     connector = aiohttp.UnixConnector(path=str(socket_path))
     async with aiohttp.ClientSession(connector=connector) as session:
-        return await get_json(session, "http://localhost:8080/values")
+        result = await get_json(session, "http://localhost:8080/values")
+        assert isinstance(result, dict), "Expected a dictionary response"
+        return result
 
 
 async def async_get_value_key(socket_path: pathlib.Path, key: str) -> Any:
@@ -228,7 +242,14 @@ async def async_get_value_key(socket_path: pathlib.Path, key: str) -> Any:
 
 @app.command("get")
 def get(
-    measurement: str = typer.Argument(..., help="Measurement to retrieve (e.g., V_in, V_supercap, I_in, T_mcu, state, 5v_output_enabled, watchdog_enabled, watchdog_timeout, watchdog_elapsed, hardware_version, firmware_version)")
+    measurement: str = typer.Argument(
+        ...,
+        help=(
+            "Measurement to retrieve (e.g., V_in, V_supercap, I_in, "
+            "T_mcu, state, 5v_output_enabled, watchdog_enabled, "
+            "watchdog_timeout, watchdog_elapsed, hardware_version, firmware_version)"
+        ),
+    ),
 ) -> None:
     """Get individual measurements and runtime values."""
     try:
@@ -250,9 +271,17 @@ async def async_set_config_key(socket_path: pathlib.Path, key: str, value: Any) 
 
 @app.command("config")
 def config(
-    action: str = typer.Argument(None, help="Action: 'get' to retrieve a key, 'set' to set a key, or leave empty to show all"),
-    key: str = typer.Argument(None, help="Configuration key to get or set"),
-    value: str = typer.Argument(None, help="Value to set (only used with 'set' action)")
+    action: str | None = typer.Argument(
+        None,
+        help=(
+            "Action: 'get' to retrieve a key, "
+            "'set' to set a key, or leave empty to show all"
+        ),
+    ),
+    key: str | None = typer.Argument(None, help="Configuration key to get or set"),
+    value: str | None = typer.Argument(
+        None, help="Value to set (only used with 'set' action)"
+    ),
 ) -> None:
     """Get all configuration, get a specific config key, or set a config key value."""
     if action is None:
@@ -280,12 +309,16 @@ def config(
             raise typer.Exit(code=1)
     elif action == "set":
         if key is None or value is None:
-            console.print("Error: both key and value are required when using 'set' action", style="red")
+            console.print(
+                "Error: both key and value are required when using 'set' action",
+                style="red",
+            )
             raise typer.Exit(code=1)
         # Set specific key
         try:
             # Try to convert value to appropriate type
             # First try int, then float, fallback to string
+            numeric_value: float | int | str | None = None
             try:
                 numeric_value = int(value)
             except ValueError:
@@ -304,8 +337,12 @@ def config(
             console.print(f"Error setting config key '{key}': {e}", style="red")
             raise typer.Exit(code=1)
     else:
-        console.print(f"Error: unknown action '{action}'. Use 'get' or 'set'", style="red")
+        console.print(
+            f"Error: unknown action '{action}'. Use 'get' or 'set'", style="red"
+        )
         raise typer.Exit(code=1)
+
+
 @app.callback(invoke_without_command=True)
 def callback(
     ctx: typer.Context,

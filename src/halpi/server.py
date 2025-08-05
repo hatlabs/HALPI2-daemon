@@ -144,11 +144,13 @@ class RouteHandlers:
             elif isinstance(data, numbers.Number):
                 self.halpi_device.set_auto_restart(bool(data))
             else:
-                return web.Response(status=400, text="Value must be a boolean or number")
+                return web.Response(
+                    status=400, text="Value must be a boolean or number"
+                )
         elif key == "solo_depleting_timeout":
             # Handle numeric values for solo_depleting_timeout
             if isinstance(data, numbers.Number):
-                self.halpi_device.set_solo_depleting_timeout(float(data))
+                self.halpi_device.set_solo_depleting_timeout(float(data))  # type: ignore
             else:
                 return web.Response(status=400, text="Value must be a number")
         else:
@@ -157,18 +159,18 @@ class RouteHandlers:
                 return web.Response(status=400, text="Value must be a number")
 
             if key == "watchdog_timeout":
-                self.halpi_device.set_watchdog_timeout(float(data))
+                self.halpi_device.set_watchdog_timeout(float(data))  # type: ignore
             elif key == "power_on_threshold":
-                self.halpi_device.set_power_on_threshold(data)
+                self.halpi_device.set_power_on_threshold(data)  # type: ignore
             elif key == "power_off_threshold":
-                self.halpi_device.set_power_off_threshold(data)
+                self.halpi_device.set_power_off_threshold(data)  # type: ignore
             elif key == "led_brightness":
                 if self.halpi_device.firmware_version().startswith("1."):
                     return web.Response(
                         status=400,
                         text="LED brightness is not supported in hardware version 1.x",
                     )
-                self.halpi_device.set_led_brightness(int(data))
+                self.halpi_device.set_led_brightness(int(data))  # type: ignore
             else:
                 return web.Response(status=404)
 
@@ -215,6 +217,8 @@ class RouteHandlers:
     async def get_values_key(self, request: web.Request) -> web.Response:
         """Get a measured value or state variable."""
         key = request.match_info["key"]
+
+        value: float | int | str
 
         if key == "V_in":
             value = self.halpi_device.dcin_voltage()
