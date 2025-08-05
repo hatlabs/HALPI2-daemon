@@ -97,6 +97,7 @@ class RouteHandlers:
         power_off_threshold = self.halpi_device.power_off_threshold()
         led_brightness = self.halpi_device.led_brightness()
         auto_restart = self.halpi_device.auto_restart()
+        solo_depleting_timeout = self.halpi_device.solo_depleting_timeout()
 
         config = {
             "watchdog_timeout": watchdog_timeout,
@@ -104,6 +105,7 @@ class RouteHandlers:
             "power_off_threshold": power_off_threshold,
             "led_brightness": led_brightness,
             "auto_restart": auto_restart,
+            "solo_depleting_timeout": solo_depleting_timeout,
         }
 
         return web.json_response(config)
@@ -122,6 +124,8 @@ class RouteHandlers:
             value = self.halpi_device.led_brightness()
         elif key == "auto_restart":
             value = self.halpi_device.auto_restart()
+        elif key == "solo_depleting_timeout":
+            value = self.halpi_device.solo_depleting_timeout()
         else:
             return web.Response(status=404)
 
@@ -141,6 +145,12 @@ class RouteHandlers:
                 self.halpi_device.set_auto_restart(bool(data))
             else:
                 return web.Response(status=400, text="Value must be a boolean or number")
+        elif key == "solo_depleting_timeout":
+            # Handle numeric values for solo_depleting_timeout
+            if isinstance(data, numbers.Number):
+                self.halpi_device.set_solo_depleting_timeout(float(data))
+            else:
+                return web.Response(status=400, text="Value must be a number")
         else:
             # check that data is a number for other config values
             if not isinstance(data, numbers.Number):

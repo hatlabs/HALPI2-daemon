@@ -238,6 +238,25 @@ class HALPIDevice:
         """Set the auto restart setting. True enables auto restart."""
         self.i2c_write_byte(0x18, 1 if enabled else 0)
 
+    def solo_depleting_timeout(self) -> float:
+        """Get the solo depleting timeout in seconds."""
+        timeout_ms = self.i2c_query_bytes(0x19, 4)
+        # Convert from big-endian bytes to u32, then to seconds
+        timeout_value = (timeout_ms[0] << 24) | (timeout_ms[1] << 16) | (timeout_ms[2] << 8) | timeout_ms[3]
+        return timeout_value / 1000.0
+
+    def set_solo_depleting_timeout(self, timeout: float) -> None:
+        """Set the solo depleting timeout in seconds."""
+        timeout_ms = int(timeout * 1000)
+        # Convert to big-endian 4 bytes
+        bytes_data = [
+            (timeout_ms >> 24) & 0xFF,
+            (timeout_ms >> 16) & 0xFF,
+            (timeout_ms >> 8) & 0xFF,
+            timeout_ms & 0xFF
+        ]
+        self.i2c_write_bytes(0x19, bytes_data)
+
     def input_current(self) -> float:
         return self.read_analog_word(0x22, self.i_max)
 
