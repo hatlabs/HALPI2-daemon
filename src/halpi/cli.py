@@ -144,9 +144,13 @@ async def async_flash_firmware(
             data.add_field("firmware", f, filename=filename)
             response = await session.post(url, data=data)
             if response.status != 204:
+                error_text = await response.text()
                 console.print(
-                    f"Error: Received HTTP status {response.status}", style="red"
+                    f"Error: Firmware flashing failed with HTTP status {response.status}", style="red"
                 )
+                if error_text:
+                    console.print(f"Error details: {error_text}", style="red")
+                raise typer.Exit(code=1)
 
 
 @app.command("flash")
@@ -159,7 +163,15 @@ def flash_firmware(
     """
     Flash firmware to the device.
     """
-    asyncio.run(async_flash_firmware(state["socket"], firmware_file))
+    try:
+        asyncio.run(async_flash_firmware(state["socket"], firmware_file))
+        console.print("Firmware flashing completed successfully", style="green")
+    except typer.Exit:
+        # Re-raise typer.Exit to preserve the exit code
+        raise
+    except Exception as e:
+        console.print(f"Error: Firmware flashing failed: {e}", style="red")
+        raise typer.Exit(code=1)
 
 
 async def async_firmware_version(socket_path: pathlib.Path) -> None:
