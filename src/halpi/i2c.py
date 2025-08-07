@@ -34,10 +34,12 @@ class States(Enum):
     BlackoutSolo = 5
     BlackoutCoOp = 6
     BlackoutShutdown = 7
-    PoweredDown = 8
-    HostUnresponsive = 9
-    EnteringStandby = 10
-    Standby = 11
+    ManualShutdown = 8
+    PoweredDownBlackout = 9
+    PoweredDownManual = 10
+    HostUnresponsive = 11
+    EnteringStandby = 12
+    Standby = 13
 
 
 class DeviceNotFoundError(Exception):
