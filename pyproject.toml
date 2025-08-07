@@ -1,6 +1,6 @@
 [project]
 name = "halpid"
-version = "3.0.3"
+version = "4.0.0"
 description = "halpid is a power monitor and watchdog daemon for the HALPI2."
 readme = "README.md"
 requires-python = ">=3.11"

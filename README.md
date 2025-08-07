@@ -23,7 +23,22 @@ The main use case for the service software is to have the Raspberry Pi operating
 
 ## Installation
 
-TBD
+End-users should install the `halpid` package using `apt`:
+
+```bash
+sudo apt install halpid
+```
+
+The APT repository is available at [https://apt.hatlabs.fi](https://apt.hatlabs.fi).
+
+When developing, you can install the source code by cloning the repository and running:
+
+```bash
+./run install
+```
+
+This will install `halpid` and its dependencies in a virtual environment, allowing you to run the daemon and test it.
+
 
 ## Configuration
 
@@ -43,302 +58,34 @@ For a more detailed HALPI2 documentation, please visit the [documentation websit
 
 HALPI2 devices are available for purchase at [shop.hatlabs.fi](https://shop.hatlabs.fi/).
 
-----
+## Usage
 
-**FIXME: The documentation below needs to be updated.**
+The `halpi` command-line interface provides access to device status, configuration, and control:
 
-## 🛠️ Development Instructions
+### Basic Commands
 
-See the `run` script for common development tasks. The instructions below are for a generic `poetry` project.
+- `halpi status` - Show device status and measurements
+- `halpi version` - Show version information
+- `halpi get <key>` - Get specific measurement or value
+- `halpi config` - Show all configuration settings
+- `halpi config <key>` - Get specific configuration value
+- `halpi config <key> <value>` - Set configuration value
+- `halpi shutdown` - Shutdown the device
+- `halpi shutdown --standby --time <time>` - Enter standby mode
+- `halpi flash <firmware-file>` - Update device firmware
 
-### Building and releasing your package
-
-Building a new version of the application contains steps:
-
-- Bump the version of your package `poetry version <version>`. You can pass the new version explicitly, or a rule such as `major`, `minor`, or `patch`. For more details, refer to the [Semantic Versions](https://semver.org/) standard.
-- Make a commit to `GitHub`.
-- Create a `GitHub release`.
-- And... publish 🙂 `poetry publish --build`
-
-### Development features
-
-- Supports for `Python 3.9` and higher.
-- [`Poetry`](https://python-poetry.org/) as the dependencies manager. See configuration in [`pyproject.toml`](https://github.com/hatlabs/halpid/blob/master/pyproject.toml) and [`setup.cfg`](https://github.com/hatlabs/halpid/blob/master/setup.cfg).
-- Automatic codestyle with [`black`](https://github.com/psf/black), [`isort`](https://github.com/timothycrosley/isort) and [`pyupgrade`](https://github.com/asottile/pyupgrade).
-- Ready-to-use [`pre-commit`](https://pre-commit.com/) hooks with code-formatting.
-- Type checks with [`mypy`](https://mypy.readthedocs.io); docstring checks with [`darglint`](https://github.com/terrencepreilly/darglint); security checks with [`safety`](https://github.com/pyupio/safety) and [`bandit`](https://github.com/PyCQA/bandit)
-- Testing with [`pytest`](https://docs.pytest.org/en/latest/).
-- Ready-to-use [`.editorconfig`](https://github.com/hatlabs/halpid/blob/master/.editorconfig), [`.dockerignore`](https://github.com/hatlabs/halpid/blob/master/.dockerignore), and [`.gitignore`](https://github.com/hatlabs/halpid/blob/master/.gitignore). You don't have to worry about those things.
-
-### Deployment features
-
-- `GitHub` integration: issue and pr templates.
-- `Github Actions` with predefined [build workflow](https://github.com/hatlabs/shrpid/blob/master/.github/workflows/build.yml) as the default CI/CD.
-- Everything is already set up for security checks, codestyle checks, code formatting, testing, linting, docker builds, etc with [`Makefile`](https://github.com/hatlabs/shrpid/blob/master/Makefile#L89). More details in [makefile-usage](#makefile-usage).
-- [Dockerfile](https://github.com/hatlabs/shrpid/blob/master/docker/Dockerfile) for your package.
-- Always up-to-date dependencies with [`@dependabot`](https://dependabot.com/). You will only [enable it](https://docs.github.com/en/github/administering-a-repository/enabling-and-disabling-version-updates#enabling-github-dependabot-version-updates).
-- Automatic drafts of new releases with [`Release Drafter`](https://github.com/marketplace/actions/release-drafter). You may see the list of labels in [`release-drafter.yml`](https://github.com/hatlabs/shrpid/blob/master/.github/release-drafter.yml). Works perfectly with [Semantic Versions](https://semver.org/) specification.
-
-### Open source community features
-
-- Ready-to-use [Pull Requests templates](https://github.com/hatlabs/shrpid/blob/master/.github/PULL_REQUEST_TEMPLATE.md) and several [Issue templates](https://github.com/hatlabs/shrpid/tree/master/.github/ISSUE_TEMPLATE).
-- Files such as: `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and `SECURITY.md` are generated automatically.
-- [`Stale bot`](https://github.com/apps/stale) that closes abandoned issues after a period of inactivity. (You will only [need to setup free plan](https://github.com/marketplace/stale)). Configuration is [here](https://github.com/hatlabs/shrpid/blob/master/.github/.stale.yml).
-- [Semantic Versions](https://semver.org/) specification with [`Release Drafter`](https://github.com/marketplace/actions/release-drafter).
-
-## Installation
+### Examples
 
 ```bash
-pip install -U shrpid
+# Check device status
+halpi status
+
+# Get input voltage
+halpi get V_in
+
+# Set watchdog timeout to 30 seconds
+halpi config watchdog_timeout 30
+
+# Schedule standby wakeup in 3600 seconds
+halpi shutdown --standby --time 3600
 ```
-
-or install with `Poetry`
-
-```bash
-poetry add shrpid
-```
-
-## Using with Conda
-
-Conda users can setup a development environtment with ideas [stolen from Stack Overflow](https://stackoverflow.com/a/71110028/2999754).
-
-```bash
-conda create --name shrpid --file conda-linux-64.lock
-conda activate shrpid
-poetry install
-```
-
-and during regular use:
-
-```bash
-conda activate shrpid
-```
-
-Conda environment can be updated as follows:
-
-```bash
-# Re-generate Conda lock file(s) based on environment.yml
-conda-lock -k explicit --conda mamba
-# Update Conda packages based on re-generated lock file
-mamba update --file conda-linux-64.lock
-# Update Poetry packages and re-generate poetry.lock
-poetry update
-```
-
-### Makefile usage
-
-[`Makefile`](https://github.com/hatlabs/shrpid/blob/master/Makefile) contains a lot of functions for faster development.
-
-<details>
-<summary>1. Download and remove Poetry</summary>
-<p>
-
-To download and install Poetry run:
-
-```bash
-make poetry-download
-```
-
-To uninstall
-
-```bash
-make poetry-remove
-```
-
-</p>
-</details>
-
-<details>
-<summary>2. Install all dependencies and pre-commit hooks</summary>
-<p>
-
-Install requirements:
-
-```bash
-make install
-```
-
-Pre-commit hooks coulb be installed after `git init` via
-
-```bash
-make pre-commit-install
-```
-
-</p>
-</details>
-
-<details>
-<summary>3. Codestyle</summary>
-<p>
-
-Automatic formatting uses `pyupgrade`, `isort` and `black`.
-
-```bash
-make codestyle
-
-# or use synonym
-make formatting
-```
-
-Codestyle checks only, without rewriting files:
-
-```bash
-make check-codestyle
-```
-
-> Note: `check-codestyle` uses `isort`, `black` and `darglint` library
-
-Update all dev libraries to the latest version using one comand
-
-```bash
-make update-dev-deps
-```
-
-</p>
-</details>
-
-<details>
-<summary>4. Code security</summary>
-<p>
-
-```bash
-make check-safety
-```
-
-This command launches `Poetry` integrity checks as well as identifies security issues with `Safety` and `Bandit`.
-
-```bash
-make check-safety
-```
-
-</p>
-</details>
-
-<details>
-<summary>5. Type checks</summary>
-<p>
-
-Run `mypy` static type checker
-
-```bash
-make mypy
-```
-
-</p>
-</details>
-
-<details>
-<summary>6. Tests with coverage badges</summary>
-<p>
-
-Run `pytest`
-
-```bash
-make test
-```
-
-</p>
-</details>
-
-<details>
-<summary>7. All linters</summary>
-<p>
-
-Of course there is a command to ~~rule~~ run all linters in one:
-
-```bash
-make lint
-```
-
-the same as:
-
-```bash
-make test && make check-codestyle && make mypy && make check-safety
-```
-
-</p>
-</details>
-
-<details>
-<summary>8. Docker</summary>
-<p>
-
-```bash
-make docker-build
-```
-
-which is equivalent to:
-
-```bash
-make docker-build VERSION=latest
-```
-
-Remove docker image with
-
-```bash
-make docker-remove
-```
-
-More information [about docker](https://github.com/hatlabs/shrpid/tree/master/docker).
-
-</p>
-</details>
-
-<details>
-<summary>9. Cleanup</summary>
-<p>
-Delete pycache files
-
-```bash
-make pycache-remove
-```
-
-Remove package build
-
-```bash
-make build-remove
-```
-
-Delete .DS_STORE files
-
-```bash
-make dsstore-remove
-```
-
-Remove .mypycache
-
-```bash
-make mypycache-remove
-```
-
-Or to remove all above run:
-
-```bash
-make cleanup
-```
-
-</p>
-</details>
-
-## 📈 Releases
-
-You can see the list of available releases on the [GitHub Releases](https://github.com/hatlabs/shrpid/releases) page.
-
-We follow [Semantic Versions](https://semver.org/) specification.
-
-We use [`Release Drafter`](https://github.com/marketplace/actions/release-drafter). As pull requests are merged, a draft release is kept up-to-date listing the changes, ready to publish when you’re ready. With the categories option, you can categorize pull requests in release notes using labels.
-
-### List of labels and corresponding titles
-
-|               **Label**               |  **Title in Releases**  |
-| :-----------------------------------: | :---------------------: |
-|       `enhancement`, `feature`        |       🚀 Features       |
-| `bug`, `refactoring`, `bugfix`, `fix` | 🔧 Fixes & Refactoring  |
-|       `build`, `ci`, `testing`        | 📦 Build System & CI/CD |
-|              `breaking`               |   💥 Breaking Changes   |
-|            `documentation`            |    📝 Documentation     |
-|            `dependencies`             | ⬆️ Dependencies updates |
-
-You can update it in [`release-drafter.yml`](https://github.com/hatlabs/shrpid/blob/master/.github/release-drafter.yml).
-
-GitHub creates the `bug`, `enhancement`, and `documentation` labels for you. Dependabot creates the `dependencies` label. Create the remaining labels on the Issues tab of your GitHub repository, when you need them.

@@ -24,29 +24,11 @@ class RouteHandlers:
         return web.Response(text="This is halpid!\n")
 
     async def get_version(self, request: web.Request) -> web.Response:
-        """Get the hardware and firmware version numbers."""
-        hw_version = self.halpi_device.hardware_version()
-        fw_version = self.halpi_device.firmware_version()
+        """Get the daemon version."""
         daemon_version = halpi.const.VERSION
 
         response = {
-            "hardware_version": hw_version,
-            "firmware_version": fw_version,
             "daemon_version": daemon_version,
-        }
-
-        return web.json_response(response)
-
-    async def get_state(self, request: web.Request) -> web.Response:
-        """Get the current state of the device."""
-        state = self.halpi_device.state()
-        en5v_state = self.halpi_device.en5v_state()
-        watchdog_enabled = bool(self.halpi_device.watchdog_timeout())
-
-        response = {
-            "state": state,
-            "5v_output_enabled": en5v_state,
-            "watchdog_enabled": watchdog_enabled,
         }
 
         return web.json_response(response)
@@ -60,13 +42,13 @@ class RouteHandlers:
 
         return web.Response(status=204)
 
-    async def post_sleep(self, request: web.Request) -> web.Response:
-        """Receive a sleep request from the client."""
+    async def post_standby(self, request: web.Request) -> web.Response:
+        """Receive a standby request from the client."""
 
         if self.halpi_device.firmware_version().startswith("1."):
             return web.Response(
                 status=400,
-                text="Sleep mode is not supported in firmware version 1.x",
+                text="Standby mode is not supported in firmware version 1.x",
             )
 
         now = datetime.datetime.now()
@@ -101,7 +83,7 @@ class RouteHandlers:
             asyncio.create_subprocess_exec("rtcwake", "-m", "no", "-t", str(timestamp))
         )
 
-        self.halpi_device.request_sleep()
+        self.halpi_device.request_standby()
 
         # From the OS point of view, this is a regular shutdown.
         asyncio.create_task(asyncio.create_subprocess_exec("shutdown", "-h", "now"))
@@ -114,12 +96,16 @@ class RouteHandlers:
         power_on_threshold = self.halpi_device.power_on_threshold()
         power_off_threshold = self.halpi_device.power_off_threshold()
         led_brightness = self.halpi_device.led_brightness()
+        auto_restart = self.halpi_device.auto_restart()
+        solo_depleting_timeout = self.halpi_device.solo_depleting_timeout()
 
         config = {
             "watchdog_timeout": watchdog_timeout,
             "power_on_threshold": power_on_threshold,
             "power_off_threshold": power_off_threshold,
             "led_brightness": led_brightness,
+            "auto_restart": auto_restart,
+            "solo_depleting_timeout": solo_depleting_timeout,
         }
 
         return web.json_response(config)
@@ -136,6 +122,10 @@ class RouteHandlers:
             value = self.halpi_device.power_off_threshold()
         elif key == "led_brightness":
             value = self.halpi_device.led_brightness()
+        elif key == "auto_restart":
+            value = self.halpi_device.auto_restart()
+        elif key == "solo_depleting_timeout":
+            value = self.halpi_device.solo_depleting_timeout()
         else:
             return web.Response(status=404)
 
@@ -145,49 +135,90 @@ class RouteHandlers:
         """Set a configuration value."""
         key = request.match_info["key"]
 
-        data: float = await request.json()
+        data = await request.json()
 
-        # check that data is a number
-        if not isinstance(data, numbers.Number):
-            return web.Response(status=400, text="Value must be a number")
-
-        if key == "watchdog_timeout":
-            self.halpi_device.set_watchdog_timeout(float(data))
-        elif key == "power_on_threshold":
-            self.halpi_device.set_power_on_threshold(data)
-        elif key == "power_off_threshold":
-            self.halpi_device.set_power_off_threshold(data)
-        elif key == "led_brightness":
-            if self.halpi_device.firmware_version().startswith("1."):
+        if key == "auto_restart":
+            # Handle boolean values for auto_restart
+            if isinstance(data, bool):
+                self.halpi_device.set_auto_restart(data)
+            elif isinstance(data, numbers.Number):
+                self.halpi_device.set_auto_restart(bool(data))
+            else:
                 return web.Response(
-                    status=400,
-                    text="LED brightness is not supported in hardware version 1.x",
+                    status=400, text="Value must be a boolean or number"
                 )
-            self.halpi_device.set_led_brightness(int(data))
+        elif key == "solo_depleting_timeout":
+            # Handle numeric values for solo_depleting_timeout
+            if isinstance(data, numbers.Number):
+                self.halpi_device.set_solo_depleting_timeout(float(data))  # type: ignore
+            else:
+                return web.Response(status=400, text="Value must be a number")
         else:
-            return web.Response(status=404)
+            # check that data is a number for other config values
+            if not isinstance(data, numbers.Number):
+                return web.Response(status=400, text="Value must be a number")
+
+            if key == "watchdog_timeout":
+                self.halpi_device.set_watchdog_timeout(float(data))  # type: ignore
+            elif key == "power_on_threshold":
+                self.halpi_device.set_power_on_threshold(data)  # type: ignore
+            elif key == "power_off_threshold":
+                self.halpi_device.set_power_off_threshold(data)  # type: ignore
+            elif key == "led_brightness":
+                if self.halpi_device.firmware_version().startswith("1."):
+                    return web.Response(
+                        status=400,
+                        text="LED brightness is not supported in hardware version 1.x",
+                    )
+                self.halpi_device.set_led_brightness(int(data))  # type: ignore
+            else:
+                return web.Response(status=404)
 
         return web.Response(status=204)
 
     async def get_values(self, request: web.Request) -> web.Response:
-        """Get measured values."""
+        """Get measured values and state variables."""
         dcin_voltage = self.halpi_device.dcin_voltage()
         supercap_voltage = self.halpi_device.supercap_voltage()
         input_current = self.halpi_device.input_current()
-        mcu_temperature = self.halpi_device.temperature()
+        mcu_temperature = self.halpi_device.mcu_temperature()
+        pcb_temperature = self.halpi_device.pcb_temperature()
+
+        # Include state variables as individual key-value pairs
+        device_state = self.halpi_device.state()
+        en5v_state = self.halpi_device.en5v_state()
+        watchdog_timeout = self.halpi_device.watchdog_timeout()
+        watchdog_enabled = bool(watchdog_timeout)
+        watchdog_elapsed = self.halpi_device.watchdog_elapsed()
+
+        # Include version information
+        hw_version = self.halpi_device.hardware_version()
+        fw_version = self.halpi_device.firmware_version()
+        daemon_version = halpi.const.VERSION
 
         values = {
             "V_in": dcin_voltage,
             "V_supercap": supercap_voltage,
             "I_in": input_current,
             "T_mcu": mcu_temperature,
+            "T_pcb": pcb_temperature,
+            "state": device_state,
+            "5v_output_enabled": en5v_state,
+            "watchdog_enabled": watchdog_enabled,
+            "watchdog_timeout": watchdog_timeout,
+            "watchdog_elapsed": watchdog_elapsed,
+            "hardware_version": hw_version,
+            "firmware_version": fw_version,
+            "daemon_version": daemon_version,
         }
 
         return web.json_response(values)
 
     async def get_values_key(self, request: web.Request) -> web.Response:
-        """Get a measured value."""
+        """Get a measured value or state variable."""
         key = request.match_info["key"]
+
+        value: float | int | str
 
         if key == "V_in":
             value = self.halpi_device.dcin_voltage()
@@ -196,7 +227,25 @@ class RouteHandlers:
         elif key == "I_in":
             value = self.halpi_device.input_current()
         elif key == "T_mcu":
-            value = self.halpi_device.temperature()
+            value = self.halpi_device.mcu_temperature()
+        elif key == "T_pcb":
+            value = self.halpi_device.pcb_temperature()
+        elif key == "state":
+            value = self.halpi_device.state()
+        elif key == "5v_output_enabled":
+            value = self.halpi_device.en5v_state()
+        elif key == "watchdog_enabled":
+            value = bool(self.halpi_device.watchdog_timeout())
+        elif key == "watchdog_timeout":
+            value = self.halpi_device.watchdog_timeout()
+        elif key == "watchdog_elapsed":
+            value = self.halpi_device.watchdog_elapsed()
+        elif key == "hardware_version":
+            value = self.halpi_device.hardware_version()
+        elif key == "firmware_version":
+            value = self.halpi_device.firmware_version()
+        elif key == "daemon_version":
+            value = halpi.const.VERSION
         else:
             return web.Response(status=404)
 
@@ -251,9 +300,8 @@ async def run_http_server(
         [
             web.get("/", handlers.get_root),
             web.get("/version", handlers.get_version),
-            web.get("/state", handlers.get_state),
             web.post("/shutdown", handlers.post_shutdown),
-            web.post("/sleep", handlers.post_sleep),
+            web.post("/standby", handlers.post_standby),
             web.get("/config", handlers.get_config),
             web.get("/config/{key}", handlers.get_config_key),
             web.put("/config/{key}", handlers.put_config_key),

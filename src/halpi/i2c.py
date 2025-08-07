@@ -22,17 +22,22 @@ class DFUState(Enum):
     PROTOCOL_ERROR = 8
 
 
+# Numbers must correspond to the values in the HALPI2 firmware
+
+
 class States(Enum):
-    BEGIN = 0
-    WAIT_FOR_POWER_ON = 1
-    POWER_ON_5V_OFF = 3
-    POWER_ON_5V_ON = 5
-    POWER_OFF_5V_ON = 7
-    SHUTDOWN = 9
-    WATCHDOG_REBOOT = 11
-    OFF = 13
-    SLEEP_SHUTDOWN = 15
-    SLEEP = 17
+    PowerOff = 0
+    OffCharging = 1
+    SystemStartup = 2
+    OperationalSolo = 3
+    OperationalCoOp = 4
+    BlackoutSolo = 5
+    BlackoutCoOp = 6
+    BlackoutShutdown = 7
+    PoweredDown = 8
+    HostUnresponsive = 9
+    EnteringStandby = 10
+    Standby = 11
 
 
 class DeviceNotFoundError(Exception):
@@ -52,7 +57,7 @@ class HALPIDevice:
 
         # HALPI2 defaults
         self.vcap_max = 11.0
-        self.dcin_max = 33.0
+        self.dcin_max = 40.0
         self.i_max = 3.3
         self.temp_min = 273.15 - 40.0  # in Kelvin
         self.temp_max = 273.15 + 100.0  # in Kelvin
@@ -98,27 +103,21 @@ class HALPIDevice:
         return w
 
     def i2c_write_byte(self, reg: int, val: int) -> None:
-        reg_msg = i2c_msg.write(self.addr, [reg])
-        write_msg = i2c_msg.write(self.addr, [val])
+        msg = i2c_msg.write(self.addr, [reg, val])
         with SMBus(self.bus) as bus:
-            bus.i2c_rdwr(reg_msg, write_msg)
+            bus.i2c_rdwr(msg)
 
     def i2c_write_word(self, reg: int, val: int) -> None:
-        reg_msg = i2c_msg.write(self.addr, [reg])
-        # Split the word into two bytes
-        buf = [(val >> 8), val & 0xFF]
-        write_msg = i2c_msg.write(self.addr, buf)
+        msg = i2c_msg.write(self.addr, [reg, (val >> 8), val & 0xFF])
         with SMBus(self.bus) as bus:
-            bus.i2c_rdwr(reg_msg, write_msg)
+            bus.i2c_rdwr(msg)
 
     def i2c_write_bytes(self, reg: int, vals: Sequence[int]) -> None:
-        reg_msg = i2c_msg.write(self.addr, [reg])
         if not all(0 <= v < 256 for v in vals):
             raise ValueError("All values must be in the range 0-255")
-        write_msg = i2c_msg.write(self.addr, vals)
-
+        msg = i2c_msg.write(self.addr, [reg] + list(vals))
         with SMBus(self.bus) as bus:
-            bus.i2c_rdwr(reg_msg, write_msg)
+            bus.i2c_rdwr(msg)
 
     def i2c_write_read_bytes(
         self, reg: int, msg: Sequence[int], read_len: int
@@ -126,11 +125,10 @@ class HALPIDevice:
         """
         Write a register address and message data, then read a response.
         """
-        reg_msg = i2c_msg.write(self.addr, [reg])
-        write_msg = i2c_msg.write(self.addr, msg)
+        write_msg = i2c_msg.write(self.addr, [reg] + list(msg))
         read_msg = i2c_msg.read(self.addr, read_len)
         with SMBus(self.bus) as bus:
-            bus.i2c_rdwr(reg_msg, write_msg, read_msg)
+            bus.i2c_rdwr(write_msg, read_msg)
         return list(read_msg)  # type: ignore
 
     def _set_hardware_version(self, version: str) -> None:
@@ -215,7 +213,7 @@ class HALPIDevice:
     def request_shutdown(self):
         self.i2c_write_byte(0x30, 0x01)
 
-    def request_sleep(self):
+    def request_standby(self):
         self.i2c_write_byte(0x31, 0x01)
 
     def watchdog_elapsed(self):
@@ -227,11 +225,50 @@ class HALPIDevice:
     def set_led_brightness(self, brightness: int) -> None:
         self.i2c_write_byte(0x17, brightness)
 
+    def auto_restart(self) -> bool:
+        """Get the auto restart setting. True means auto restart is enabled."""
+        return bool(self.i2c_query_byte(0x18))
+
+    def set_auto_restart(self, enabled: bool) -> None:
+        """Set the auto restart setting. True enables auto restart."""
+        self.i2c_write_byte(0x18, 1 if enabled else 0)
+
+    def solo_depleting_timeout(self) -> float:
+        """Get the solo depleting timeout in seconds."""
+        timeout_ms = self.i2c_query_bytes(0x19, 4)
+        # Convert from big-endian bytes to u32, then to seconds
+        timeout_value = (
+            (timeout_ms[0] << 24)
+            | (timeout_ms[1] << 16)
+            | (timeout_ms[2] << 8)
+            | timeout_ms[3]
+        )
+        return timeout_value / 1000.0
+
+    def set_solo_depleting_timeout(self, timeout: float) -> None:
+        """Set the solo depleting timeout in seconds."""
+        timeout_ms = int(timeout * 1000)
+        # Convert to big-endian 4 bytes
+        bytes_data = [
+            (timeout_ms >> 24) & 0xFF,
+            (timeout_ms >> 16) & 0xFF,
+            (timeout_ms >> 8) & 0xFF,
+            timeout_ms & 0xFF,
+        ]
+        self.i2c_write_bytes(0x19, bytes_data)
+
     def input_current(self) -> float:
         return self.read_analog_word(0x22, self.i_max)
 
-    def temperature(self) -> float:
-        return self.read_analog_word(0x23, self.temp_max)
+    def mcu_temperature(self) -> float:
+        return (
+            self.read_analog_word(0x23, self.temp_max - self.temp_min) + self.temp_min
+        )
+
+    def pcb_temperature(self) -> float:
+        return (
+            self.read_analog_word(0x24, self.temp_max - self.temp_min) + self.temp_min
+        )
 
     def start_firmware_update(self, total_size: int) -> None:
         """
