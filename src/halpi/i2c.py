@@ -33,7 +33,7 @@ class States(Enum):
     OperationalCoOp = 4
     BlackoutSolo = 5
     BlackoutCoOp = 6
-    GracefulShutdown = 7
+    BlackoutShutdown = 7
     PoweredDown = 8
     HostUnresponsive = 9
     EnteringStandby = 10
@@ -103,27 +103,21 @@ class HALPIDevice:
         return w
 
     def i2c_write_byte(self, reg: int, val: int) -> None:
-        reg_msg = i2c_msg.write(self.addr, [reg])
-        write_msg = i2c_msg.write(self.addr, [val])
+        msg = i2c_msg.write(self.addr, [reg, val])
         with SMBus(self.bus) as bus:
-            bus.i2c_rdwr(reg_msg, write_msg)
+            bus.i2c_rdwr(msg)
 
     def i2c_write_word(self, reg: int, val: int) -> None:
-        reg_msg = i2c_msg.write(self.addr, [reg])
-        # Split the word into two bytes
-        buf = [(val >> 8), val & 0xFF]
-        write_msg = i2c_msg.write(self.addr, buf)
+        msg = i2c_msg.write(self.addr, [reg, (val >> 8), val & 0xFF])
         with SMBus(self.bus) as bus:
-            bus.i2c_rdwr(reg_msg, write_msg)
+            bus.i2c_rdwr(msg)
 
     def i2c_write_bytes(self, reg: int, vals: Sequence[int]) -> None:
-        reg_msg = i2c_msg.write(self.addr, [reg])
         if not all(0 <= v < 256 for v in vals):
             raise ValueError("All values must be in the range 0-255")
-        write_msg = i2c_msg.write(self.addr, vals)
-
+        msg = i2c_msg.write(self.addr, [reg] + list(vals))
         with SMBus(self.bus) as bus:
-            bus.i2c_rdwr(reg_msg, write_msg)
+            bus.i2c_rdwr(msg)
 
     def i2c_write_read_bytes(
         self, reg: int, msg: Sequence[int], read_len: int
@@ -131,11 +125,10 @@ class HALPIDevice:
         """
         Write a register address and message data, then read a response.
         """
-        reg_msg = i2c_msg.write(self.addr, [reg])
-        write_msg = i2c_msg.write(self.addr, msg)
+        write_msg = i2c_msg.write(self.addr, [reg] + list(msg))
         read_msg = i2c_msg.read(self.addr, read_len)
         with SMBus(self.bus) as bus:
-            bus.i2c_rdwr(reg_msg, write_msg, read_msg)
+            bus.i2c_rdwr(write_msg, read_msg)
         return list(read_msg)  # type: ignore
 
     def _set_hardware_version(self, version: str) -> None:
