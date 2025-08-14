@@ -194,12 +194,6 @@ async def async_firmware_version(socket_path: pathlib.Path) -> None:
             raise typer.Exit(code=1)
 
 
-@app.command("firmware-version")
-def firmware_version() -> None:
-    """Get the firmware version from the device."""
-    asyncio.run(async_firmware_version(state["socket"]))
-
-
 @app.command("version")
 def version() -> None:
     """Get the CLI version."""
