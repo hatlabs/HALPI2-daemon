@@ -287,7 +287,13 @@ def config(
         table.add_column("Value", justify="right")
 
         for config_key, config_value in config_data.items():
-            table.add_row(config_key, str(config_value))
+            if isinstance(config_value, float):
+                formatted_value = f"{config_value:.2f}".rstrip("0")
+                if formatted_value.endswith("."):
+                    formatted_value += "0"
+            else:
+                formatted_value = str(config_value)
+            table.add_row(config_key, formatted_value)
 
         console.print(table)
     elif action == "get":
