@@ -94,7 +94,7 @@ class RouteHandlers:
         """Get the configuration."""
         watchdog_timeout = self.halpi_device.watchdog_timeout()
         power_on_threshold = self.halpi_device.power_on_threshold()
-        power_off_threshold = self.halpi_device.power_off_threshold()
+        power_off_threshold = self.halpi_device.solo_power_off_threshold()
         led_brightness = self.halpi_device.led_brightness()
         auto_restart = self.halpi_device.auto_restart()
         solo_depleting_timeout = self.halpi_device.solo_depleting_timeout()
@@ -102,7 +102,7 @@ class RouteHandlers:
         config = {
             "watchdog_timeout": watchdog_timeout,
             "power_on_threshold": power_on_threshold,
-            "power_off_threshold": power_off_threshold,
+            "solo_power_off_threshold": power_off_threshold,
             "led_brightness": led_brightness,
             "auto_restart": auto_restart,
             "solo_depleting_timeout": solo_depleting_timeout,
@@ -118,8 +118,8 @@ class RouteHandlers:
             value = self.halpi_device.watchdog_timeout()
         elif key == "power_on_threshold":
             value = self.halpi_device.power_on_threshold()
-        elif key == "power_off_threshold":
-            value = self.halpi_device.power_off_threshold()
+        elif key == "solo_power_off_threshold":
+            value = self.halpi_device.solo_power_off_threshold()
         elif key == "led_brightness":
             value = self.halpi_device.led_brightness()
         elif key == "auto_restart":
@@ -162,8 +162,8 @@ class RouteHandlers:
                 self.halpi_device.set_watchdog_timeout(float(data))  # type: ignore
             elif key == "power_on_threshold":
                 self.halpi_device.set_power_on_threshold(data)  # type: ignore
-            elif key == "power_off_threshold":
-                self.halpi_device.set_power_off_threshold(data)  # type: ignore
+            elif key == "solo_power_off_threshold":
+                self.halpi_device.set_solo_power_off_threshold(data)  # type: ignore
             elif key == "led_brightness":
                 if self.halpi_device.firmware_version().startswith("1."):
                     return web.Response(
