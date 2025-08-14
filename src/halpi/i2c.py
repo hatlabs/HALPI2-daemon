@@ -149,7 +149,7 @@ class HALPIDevice:
         self.i2c_write_byte(reg, int(256 * val / scale))
 
     def read_analog_word(self, reg: int, scale: float) -> float:
-        return scale * self.i2c_query_word(reg) / 65536
+        return scale * self.i2c_query_word(reg) / 65536.0
 
     def write_analog_word(self, reg: int, val: float, scale: float) -> None:
         self.i2c_write_word(reg, int(65536 * val / scale))
@@ -197,10 +197,10 @@ class HALPIDevice:
     def set_power_on_threshold(self, threshold: float) -> None:
         self.write_analog_word(0x13, threshold, self.vcap_max)
 
-    def power_off_threshold(self) -> float:
+    def solo_power_off_threshold(self) -> float:
         return self.read_analog_word(0x14, self.vcap_max)
 
-    def set_power_off_threshold(self, threshold: float) -> None:
+    def set_solo_power_off_threshold(self, threshold: float) -> None:
         self.write_analog_word(0x14, threshold, self.vcap_max)
 
     def state(self) -> str:

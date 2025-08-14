@@ -194,12 +194,6 @@ async def async_firmware_version(socket_path: pathlib.Path) -> None:
             raise typer.Exit(code=1)
 
 
-@app.command("firmware-version")
-def firmware_version() -> None:
-    """Get the firmware version from the device."""
-    asyncio.run(async_firmware_version(state["socket"]))
-
-
 @app.command("version")
 def version() -> None:
     """Get the CLI version."""
@@ -293,7 +287,13 @@ def config(
         table.add_column("Value", justify="right")
 
         for config_key, config_value in config_data.items():
-            table.add_row(config_key, str(config_value))
+            if isinstance(config_value, float):
+                formatted_value = f"{config_value:.2f}".rstrip("0")
+                if formatted_value.endswith("."):
+                    formatted_value += "0"
+            else:
+                formatted_value = str(config_value)
+            table.add_row(config_key, formatted_value)
 
         console.print(table)
     elif action == "get":
