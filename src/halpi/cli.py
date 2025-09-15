@@ -62,6 +62,17 @@ async def async_print_status(socket_path: pathlib.Path) -> None:
 
         table.add_row("state", str(values["state"]), "")
         table.add_row("5v_output_enabled", str(values["5v_output_enabled"]), "")
+
+        # Show USB port states in a compact format
+        usb_state = values["usb_port_state"]
+        usb_summary = []
+        for i in range(4):
+            if usb_state & (1 << i):
+                usb_summary.append(f"USB{i}:✓")
+            else:
+                usb_summary.append(f"USB{i}:✗")
+        table.add_row("usb_ports", " ".join(usb_summary), "")
+
         table.add_row("watchdog_enabled", str(values["watchdog_enabled"]), "")
         if values["watchdog_enabled"]:
             table.add_row("watchdog_timeout", f"{values['watchdog_timeout']:.1f}", "s")
@@ -240,7 +251,7 @@ def get(
         ...,
         help=(
             "Measurement to retrieve (e.g., V_in, V_supercap, I_in, "
-            "T_mcu, state, 5v_output_enabled, watchdog_enabled, "
+            "T_mcu, state, 5v_output_enabled, usb_port_state, watchdog_enabled, "
             "watchdog_timeout, watchdog_elapsed, hardware_version, firmware_version)"
         ),
     ),
@@ -340,6 +351,147 @@ def config(
         console.print(
             f"Error: unknown action '{action}'. Use 'get' or 'set'", style="red"
         )
+        raise typer.Exit(code=1)
+
+
+async def async_get_usb_ports(socket_path: pathlib.Path) -> dict[str, bool]:
+    """Get all USB port states from the device."""
+    connector = aiohttp.UnixConnector(path=str(socket_path))
+    async with aiohttp.ClientSession(connector=connector) as session:
+        result = await get_json(session, "http://localhost:8080/usb")
+        assert isinstance(result, dict), "Expected a dictionary response"
+        return result
+
+
+async def async_get_usb_port(socket_path: pathlib.Path, port: int) -> bool:
+    """Get a specific USB port state from the device."""
+    connector = aiohttp.UnixConnector(path=str(socket_path))
+    async with aiohttp.ClientSession(connector=connector) as session:
+        result = await get_json(session, f"http://localhost:8080/usb/{port}")
+        assert isinstance(result, bool), "Expected a boolean response"
+        return result
+
+
+async def async_set_usb_ports(
+    socket_path: pathlib.Path, ports: dict[str, bool]
+) -> None:
+    """Set USB port states on the device."""
+    connector = aiohttp.UnixConnector(path=str(socket_path))
+    async with aiohttp.ClientSession(connector=connector) as session:
+        response = await put_json(session, "http://localhost:8080/usb", ports)
+        if response != 204:
+            console.print(f"Error: Received HTTP status {response}", style="red")
+
+
+async def async_set_usb_port(
+    socket_path: pathlib.Path, port: int, enabled: bool
+) -> None:
+    """Set a specific USB port state on the device."""
+    connector = aiohttp.UnixConnector(path=str(socket_path))
+    async with aiohttp.ClientSession(connector=connector) as session:
+        response = await put_json(session, f"http://localhost:8080/usb/{port}", enabled)
+        if response != 204:
+            console.print(f"Error: Received HTTP status {response}", style="red")
+
+
+@app.command("usb")
+def usb(
+    action: str | None = typer.Argument(
+        None,
+        help=(
+            "Action: 'get' to show port states, "
+            "'enable' or 'disable' to control ports, or leave empty to show all ports"
+        ),
+    ),
+    target: str | None = typer.Argument(
+        None,
+        help="Port number (0-3) or 'all' for all ports (required for enable/disable)"
+    ),
+) -> None:
+    """Control USB port power states.
+    
+    Examples:
+      halpi usb                  # Show all port states
+      halpi usb get              # Show all port states  
+      halpi usb enable 0         # Enable USB port 0
+      halpi usb disable all      # Disable all USB ports
+      halpi usb enable all       # Enable all USB ports
+    """
+    try:
+        if action is None or action == "get":
+            # Show USB port states
+            ports = asyncio.run(async_get_usb_ports(state["socket"]))
+
+            table = Table(show_header=True, box=None)
+            table.add_column("Port", style="bold")
+            table.add_column("Enabled", justify="right")
+
+            for port_name, enabled in ports.items():
+                status = "✓" if enabled else "✗"
+                style = "green" if enabled else "red"
+                table.add_row(port_name.upper(), status, style=style)
+
+            console.print(table)
+
+        elif action == "enable":
+            if target is None:
+                console.print("Error: Specify port number (0-3) or 'all'", style="red")
+                raise typer.Exit(code=1)
+                
+            if target == "all":
+                # Enable all ports
+                ports_data = {"usb0": True, "usb1": True, "usb2": True, "usb3": True}
+                asyncio.run(async_set_usb_ports(state["socket"], ports_data))
+                console.print("All USB ports enabled")
+            else:
+                # Enable specific port
+                try:
+                    port = int(target)
+                    if port < 0 or port > 3:
+                        console.print("Error: Port must be 0-3", style="red")
+                        raise typer.Exit(code=1)
+                    asyncio.run(async_set_usb_port(state["socket"], port, True))
+                    console.print(f"USB port {port} enabled")
+                except ValueError:
+                    console.print("Error: Target must be port number (0-3) or 'all'", style="red")
+                    raise typer.Exit(code=1)
+
+        elif action == "disable":
+            if target is None:
+                console.print("Error: Specify port number (0-3) or 'all'", style="red")
+                raise typer.Exit(code=1)
+                
+            if target == "all":
+                # Disable all ports
+                ports_data = {
+                    "usb0": False,
+                    "usb1": False,
+                    "usb2": False,
+                    "usb3": False,
+                }
+                asyncio.run(async_set_usb_ports(state["socket"], ports_data))
+                console.print("All USB ports disabled")
+            else:
+                # Disable specific port
+                try:
+                    port = int(target)
+                    if port < 0 or port > 3:
+                        console.print("Error: Port must be 0-3", style="red")
+                        raise typer.Exit(code=1)
+                    asyncio.run(async_set_usb_port(state["socket"], port, False))
+                    console.print(f"USB port {port} disabled")
+                except ValueError:
+                    console.print("Error: Target must be port number (0-3) or 'all'", style="red")
+                    raise typer.Exit(code=1)
+        else:
+            console.print(
+                f"Error: unknown action '{action}'. Use 'get', 'enable', or 'disable'",
+                style="red",
+            )
+            raise typer.Exit(code=1)
+
+    except Exception as e:
+        console.print(f"Error controlling USB ports: {e}", style="red")
         raise typer.Exit(code=1)
 
 
