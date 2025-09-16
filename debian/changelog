@@ -1,9 +1,13 @@
-halpid (4.0.2) UNRELEASED; urgency=medium
+halpid (4.0.4~a1) stable; urgency=medium
 
+  [ Matti Airas ]
   * Fix the state enums. New release to also bump the Debian package version
     number.
 
- -- Matti Airas <matti.airas@hatlabs.fi>  Thu, 07 Aug 2025 10:12:23 +0000
+  [ Hat Labs CI ]
+  * Automated release 4.0.4-a1. See GitHub for details.
+
+ -- Hat Labs CI <info@hatlabs.fi>  Tue, 16 Sep 2025 12:31:22 +0000
 
 halpid (4.0.0) unstable; urgency=medium
 

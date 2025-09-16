@@ -48,7 +48,13 @@ function mypy {
 function test {
   #@ Run all tests with pytest
   #@ Category: Core Development
-  uv run pytest "$@"
+  if [ $# -eq 0 ]; then
+    # If no arguments provided, run tests only in tests/ directory to avoid config conflicts
+    uv run pytest tests/
+  else
+    # If arguments provided, pass them through
+    uv run pytest "$@"
+  fi
 }
 
 function clean {
@@ -74,15 +80,45 @@ function release:version {
 function package:deb {
   #@ Build Debian package (native)
   #@ Category: Package Management
-  echo "Building Debian package..."
-  dpkg-buildpackage -us -uc
+  echo "🏗️ Building Debian package..."
+  package:deb:only
+}
+
+function package:deb:only {
+  #@ Build Debian package from existing artifacts (internal)
+  #@ Category: Package Management
+  echo "📦 Creating Debian package..."
+
+  # Set up environment
+  dev:env
+
+  export DEBEMAIL="info@hatlabs.fi"
+  export DEBFULLNAME="Hat Labs CI"
+  export PACKAGE_VERSION=$(release:version)
+  DEB_VERSION=$(echo "$PACKAGE_VERSION" | sed 's/-\([a-zA-Z]\)/~\1/g')
+
+  # Create a new changelog entry
+  dch --newversion "$DEB_VERSION" \
+      --distribution stable \
+      --force-distribution \
+      "Automated release $PACKAGE_VERSION. See GitHub for details."
+
+  dpkg-buildpackage -us -uc -b
+
+  echo "✅ Debian package built successfully"
 }
 
 function package:deb:docker {
   #@ Build Debian package using Docker container
   #@ Category: Package Management
+  echo "🐳 Building Debian package using Docker..."
+
+  # Use Docker container for Debian packaging
+  echo "🐳 Running Debian packaging in Docker container..."
   export DIR_NAME=$(basename "$PWD")
-  docker compose -f docker/docker-compose.debtools.yml run --rm debtools ./run package:deb
+  docker compose -f docker/docker-compose.debtools.yml run --rm debtools ./run package:deb:only
+
+  echo "✅ Docker-based Debian package built successfully"
 }
 
 function package:docker:build {
@@ -256,7 +292,7 @@ function debtools {
 }
 
 function build-debian {
-  package:deb
+  package:deb:only
 }
 
 function debtools-build {
