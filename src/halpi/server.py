@@ -195,6 +195,7 @@ class RouteHandlers:
         hw_version = self.halpi_device.hardware_version()
         fw_version = self.halpi_device.firmware_version()
         daemon_version = halpi.const.VERSION
+        device_id = self.halpi_device.device_id()
 
         values = {
             "V_in": dcin_voltage,
@@ -211,6 +212,7 @@ class RouteHandlers:
             "hardware_version": hw_version,
             "firmware_version": fw_version,
             "daemon_version": daemon_version,
+            "device_id": device_id,
         }
 
         return web.json_response(values)
@@ -249,6 +251,8 @@ class RouteHandlers:
             value = self.halpi_device.firmware_version()
         elif key == "daemon_version":
             value = halpi.const.VERSION
+        elif key == "device_id":
+            value = self.halpi_device.device_id()
         else:
             return web.Response(status=404)
 

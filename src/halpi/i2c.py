@@ -425,6 +425,12 @@ class HALPIDevice:
         state = self.usb_port_state()
         return bool(state & (1 << port))
 
+    def device_id(self) -> str:
+        """Get the device unique ID as a hexadecimal string."""
+        bytes_data = self.i2c_query_bytes(0x25, 8)
+        # Convert bytes to hex string
+        return "".join(f"{byte:02x}" for byte in bytes_data)
+
     def upload_firmware_with_progress(
         self,
         firmware_data: bytes,

@@ -252,7 +252,8 @@ def get(
         help=(
             "Measurement to retrieve (e.g., V_in, V_supercap, I_in, "
             "T_mcu, state, 5v_output_enabled, usb_port_state, watchdog_enabled, "
-            "watchdog_timeout, watchdog_elapsed, hardware_version, firmware_version)"
+            "watchdog_timeout, watchdog_elapsed, hardware_version, firmware_version, "
+            "device_id)"
         ),
     ),
 ) -> None:
@@ -405,14 +406,14 @@ def usb(
     ),
     target: str | None = typer.Argument(
         None,
-        help="Port number (0-3) or 'all' for all ports (required for enable/disable)"
+        help="Port number (0-3) or 'all' for all ports (required for enable/disable)",
     ),
 ) -> None:
     """Control USB port power states.
-    
+
     Examples:
       halpi usb                  # Show all port states
-      halpi usb get              # Show all port states  
+      halpi usb get              # Show all port states
       halpi usb enable 0         # Enable USB port 0
       halpi usb disable all      # Disable all USB ports
       halpi usb enable all       # Enable all USB ports
@@ -437,7 +438,7 @@ def usb(
             if target is None:
                 console.print("Error: Specify port number (0-3) or 'all'", style="red")
                 raise typer.Exit(code=1)
-                
+
             if target == "all":
                 # Enable all ports
                 ports_data = {"usb0": True, "usb1": True, "usb2": True, "usb3": True}
@@ -453,14 +454,16 @@ def usb(
                     asyncio.run(async_set_usb_port(state["socket"], port, True))
                     console.print(f"USB port {port} enabled")
                 except ValueError:
-                    console.print("Error: Target must be port number (0-3) or 'all'", style="red")
+                    console.print(
+                        "Error: Target must be port number (0-3) or 'all'", style="red"
+                    )
                     raise typer.Exit(code=1)
 
         elif action == "disable":
             if target is None:
                 console.print("Error: Specify port number (0-3) or 'all'", style="red")
                 raise typer.Exit(code=1)
-                
+
             if target == "all":
                 # Disable all ports
                 ports_data = {
@@ -481,7 +484,9 @@ def usb(
                     asyncio.run(async_set_usb_port(state["socket"], port, False))
                     console.print(f"USB port {port} disabled")
                 except ValueError:
-                    console.print("Error: Target must be port number (0-3) or 'all'", style="red")
+                    console.print(
+                        "Error: Target must be port number (0-3) or 'all'", style="red"
+                    )
                     raise typer.Exit(code=1)
         else:
             console.print(
