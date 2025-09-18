@@ -195,6 +195,7 @@ class RouteHandlers:
         hw_version = self.halpi_device.hardware_version()
         fw_version = self.halpi_device.firmware_version()
         daemon_version = halpi.const.VERSION
+        device_id = self.halpi_device.device_id()
 
         values = {
             "V_in": dcin_voltage,
@@ -204,12 +205,14 @@ class RouteHandlers:
             "T_pcb": pcb_temperature,
             "state": device_state,
             "5v_output_enabled": en5v_state,
+            "usb_port_state": self.halpi_device.usb_port_state(),
             "watchdog_enabled": watchdog_enabled,
             "watchdog_timeout": watchdog_timeout,
             "watchdog_elapsed": watchdog_elapsed,
             "hardware_version": hw_version,
             "firmware_version": fw_version,
             "daemon_version": daemon_version,
+            "device_id": device_id,
         }
 
         return web.json_response(values)
@@ -234,6 +237,8 @@ class RouteHandlers:
             value = self.halpi_device.state()
         elif key == "5v_output_enabled":
             value = self.halpi_device.en5v_state()
+        elif key == "usb_port_state":
+            value = self.halpi_device.usb_port_state()
         elif key == "watchdog_enabled":
             value = bool(self.halpi_device.watchdog_timeout())
         elif key == "watchdog_timeout":
@@ -246,6 +251,8 @@ class RouteHandlers:
             value = self.halpi_device.firmware_version()
         elif key == "daemon_version":
             value = halpi.const.VERSION
+        elif key == "device_id":
+            value = self.halpi_device.device_id()
         else:
             return web.Response(status=404)
 
@@ -284,6 +291,80 @@ class RouteHandlers:
             logger.error(error_message)
             return web.Response(status=500, text=error_message)
 
+    async def get_usb_ports(self, request: web.Request) -> web.Response:
+        """Get USB port states."""
+        port_state = self.halpi_device.usb_port_state()
+        ports = {}
+        for i in range(4):
+            ports[f"usb{i}"] = bool(port_state & (1 << i))
+
+        return web.json_response(ports)
+
+    async def get_usb_port(self, request: web.Request) -> web.Response:
+        """Get a specific USB port state."""
+        port_str = request.match_info["port"]
+
+        try:
+            port = int(port_str)
+            if port < 0 or port > 3:
+                return web.Response(status=400, text="Port must be 0-3")
+
+            enabled = self.halpi_device.get_usb_port(port)
+            return web.json_response(enabled)
+
+        except ValueError:
+            return web.Response(status=400, text="Port must be an integer")
+
+    async def put_usb_ports(self, request: web.Request) -> web.Response:
+        """Set USB port states."""
+        data = await request.json()
+
+        if not isinstance(data, dict):
+            return web.Response(status=400, text="Expected JSON object")
+
+        # Convert individual port settings to bitfield
+        current_state = self.halpi_device.usb_port_state()
+
+        for key, value in data.items():
+            if not key.startswith("usb") or len(key) != 4:
+                continue
+
+            try:
+                port = int(key[3])  # Extract port number from "usb0", "usb1", etc.
+                if port < 0 or port > 3:
+                    continue
+
+                if isinstance(value, bool):
+                    if value:
+                        current_state |= 1 << port
+                    else:
+                        current_state &= ~(1 << port)
+
+            except (ValueError, IndexError):
+                continue
+
+        self.halpi_device.set_usb_port_state(current_state)
+        return web.Response(status=204)
+
+    async def put_usb_port(self, request: web.Request) -> web.Response:
+        """Set a specific USB port state."""
+        port_str = request.match_info["port"]
+
+        try:
+            port = int(port_str)
+            if port < 0 or port > 3:
+                return web.Response(status=400, text="Port must be 0-3")
+
+            data = await request.json()
+            if not isinstance(data, bool):
+                return web.Response(status=400, text="Value must be a boolean")
+
+            self.halpi_device.set_usb_port(port, data)
+            return web.Response(status=204)
+
+        except ValueError:
+            return web.Response(status=400, text="Port must be an integer")
+
 
 async def run_http_server(
     halpi_device: halpi.i2c.HALPIDevice,
@@ -307,6 +388,10 @@ async def run_http_server(
             web.put("/config/{key}", handlers.put_config_key),
             web.get("/values", handlers.get_values),
             web.get("/values/{key}", handlers.get_values_key),
+            web.get("/usb", handlers.get_usb_ports),
+            web.get("/usb/{port}", handlers.get_usb_port),
+            web.put("/usb", handlers.put_usb_ports),
+            web.put("/usb/{port}", handlers.put_usb_port),
             web.post("/flash", handlers.post_firmware_update),
         ]
     )

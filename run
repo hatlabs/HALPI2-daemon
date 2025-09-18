@@ -8,6 +8,300 @@
 # See https://death.andgravity.com/run-sh
 # for an explanation of how it works and why it's useful.
 
+################################################################################
+# Core Development Commands
+
+function install {
+  #@ Install project dependencies and create virtual environment
+  #@ Category: Core Development
+  uv sync
+  uv lock
+}
+
+function sync {
+  #@ Install dependencies from lock file
+  #@ Category: Core Development
+  uv sync
+}
+
+function lint {
+  #@ Run linting (ruff check/format + mypy type checking)
+  #@ Category: Core Development
+  uv run ruff check src
+  uv run ruff format --check src
+  mypy # Call mypy function
+}
+
+function format {
+  #@ Auto-format code with ruff
+  #@ Category: Core Development
+  uv run ruff check --fix src
+  uv run ruff format src
+}
+
+function mypy {
+  #@ Run type checking only
+  #@ Category: Core Development
+  uv run mypy --config-file pyproject.toml src
+}
+
+function test {
+  #@ Run all tests with pytest
+  #@ Category: Core Development
+  if [ $# -eq 0 ]; then
+    # If no arguments provided, run tests only in tests/ directory to avoid config conflicts
+    uv run pytest tests/
+  else
+    # If arguments provided, pass them through
+    uv run pytest "$@"
+  fi
+}
+
+function clean {
+  #@ Remove temporary files and caches
+  #@ Category: Core Development
+  pycache-remove
+  dsstore-remove
+  mypycache-remove
+  ipynbcheckpoints-remove
+  pytestcache-remove
+  build-remove
+}
+
+function release:version {
+  #@ Show current project version
+  #@ Category: Core Development
+  cat VERSION
+}
+
+################################################################################
+# Package Management Commands
+
+function package:deb {
+  #@ Build Debian package (native)
+  #@ Category: Package Management
+  echo "🏗️ Building Debian package..."
+  package:deb:only
+}
+
+function package:deb:only {
+  #@ Build Debian package from existing artifacts (internal)
+  #@ Category: Package Management
+  echo "📦 Creating Debian package..."
+
+  # Set up environment
+  dev:env
+
+  export DEBEMAIL="info@hatlabs.fi"
+  export DEBFULLNAME="Hat Labs CI"
+  export PACKAGE_VERSION=$(release:version)
+  DEB_VERSION=$(echo "$PACKAGE_VERSION" | sed 's/-\([a-zA-Z]\)/~\1/g')
+
+  # Create a new changelog entry
+  dch --newversion "$DEB_VERSION" \
+      --distribution stable \
+      --force-distribution \
+      "Automated release $PACKAGE_VERSION. See GitHub for details."
+
+  dpkg-buildpackage -us -uc -b
+
+  echo "✅ Debian package built successfully"
+}
+
+function package:deb:docker {
+  #@ Build Debian package using Docker container
+  #@ Category: Package Management
+  echo "🐳 Building Debian package using Docker..."
+
+  # Use Docker container for Debian packaging
+  echo "🐳 Running Debian packaging in Docker container..."
+  export DIR_NAME=$(basename "$PWD")
+  docker compose -f docker/docker-compose.debtools.yml run --rm debtools ./run package:deb:only
+
+  echo "✅ Docker-based Debian package built successfully"
+}
+
+function package:docker:build {
+  #@ Build Docker tools image
+  #@ Category: Package Management
+  export DIR_NAME=$(basename "$PWD")
+  docker compose -f docker/docker-compose.debtools.yml build debtools "$@"
+}
+
+################################################################################
+# Testing/CI Commands
+
+function ci:check {
+  #@ Run CI verification checks (lint + test)
+  #@ Category: Testing/CI
+  echo "🔍 Running CI verification checks..."
+  lint
+  test
+  echo "✅ CI checks passed"
+}
+
+function ci:build {
+  #@ Full CI build pipeline (lint + test + package)
+  #@ Category: Testing/CI
+  echo "🚀 Running full CI build pipeline..."
+  clean
+  ci:check
+  package:deb:docker
+  echo "✅ CI build pipeline completed successfully"
+}
+
+################################################################################
+# Development Utilities Commands
+
+function update-dev-deps {
+  #@ Update development dependencies to latest versions
+  #@ Category: Development Utilities
+  uv add --dev ruff mypy mypy-extensions
+}
+
+function update-bindings {
+  #@ Update I2C bindings from firmware repo
+  #@ Category: Development Utilities
+  rm -rf src/halpi2_fw_i2c_postcard
+  pushd ../HALPI2-firmware || { echo "Error: ../HALPI2-firmware not found"; exit 1; }
+  ./run generate-bindings
+  popd
+  cp -a ../HALPI2-firmware/halpi2-fw-i2c-postcard/src/halpi2_fw_i2c_postcard src/
+}
+
+function push {
+  #@ Push code to remote development server
+  #@ Category: Development Utilities
+  rsync -avP --delete --exclude-from='.gitignore' \
+    --exclude='.venv' . halpi2:src/halpid/
+}
+
+function pull {
+  #@ Pull code from remote development server
+  #@ Category: Development Utilities
+  rsync -avP --delete --exclude-from='.gitignore' \
+    --exclude='.venv' halpi2:src/halpid/ .
+}
+
+function dev:env {
+  #@ Show/check development environment
+  #@ Category: Development Utilities
+  _env
+}
+
+function dev:version:bump {
+  #@ Bump to specific version (e.g. 3.2.0)
+  #@ Usage: dev:version:bump <version>
+  #@ Category: Development Utilities
+  local new_version="${1:-}"
+
+  if [ -z "$new_version" ]; then
+    echo "Error: Version required. Usage: dev:version:bump <new_version>"
+    echo "Current version: $(release:version)"
+    echo "Example: ./run dev:version:bump 3.2.0"
+    exit 1
+  fi
+
+  echo "🔖 Bumping version from $(release:version) to $new_version..."
+  bump2version --new-version "$new_version" patch
+  echo "✓ Version bumped to $(release:version)"
+}
+
+function dev:version:dry-run {
+  #@ Preview version change without applying
+  #@ Usage: dev:version:dry-run <version>
+  #@ Category: Development Utilities
+  local new_version="${1:-}"
+
+  if [ -z "$new_version" ]; then
+    echo "Error: Version required. Usage: dev:version:dry-run <new_version>"
+    echo "Current version: $(release:version)"
+    echo "Example: ./run dev:version:dry-run 3.2.0"
+    exit 1
+  fi
+
+  echo "Current version: $(release:version)"
+  echo "Preview of changes for version $new_version:"
+  bump2version --new-version "$new_version" patch --dry-run --verbose
+}
+
+function dev:version:show {
+  #@ Show current version
+  #@ Category: Development Utilities
+  release:version
+}
+
+################################################################################
+# Docker Commands
+
+function docker:build {
+  #@ Build the Docker image
+  #@ Category: Docker
+  echo Building docker ${DOCKER_IMAGE}:${DOCKER_IMAGE_VERSION} ...
+  docker build -t ${DOCKER_IMAGE}:${DOCKER_IMAGE_VERSION} . \
+    -f ./docker/Dockerfile --no-cache
+}
+
+function docker:remove {
+  #@ Remove the Docker image
+  #@ Category: Docker
+  echo Removing docker ${DOCKER_IMAGE}:${DOCKER_IMAGE_VERSION} ...
+  docker rmi -f ${DOCKER_IMAGE}:${DOCKER_IMAGE_VERSION}
+}
+
+################################################################################
+# Setup/Installation Commands
+
+function uv-download {
+  #@ Download and install the latest version of uv
+  #@ Category: Setup/Installation
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+}
+
+################################################################################
+# Internal cleanup functions (not shown in main help)
+
+function pycache-remove {
+  find . -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
+}
+
+function dsstore-remove {
+  find . -type f -name .DS_Store -exec rm {} + 2>/dev/null || true
+}
+
+function mypycache-remove {
+  find . -type d -name .mypy_cache -exec rm -r {} + 2>/dev/null || true
+}
+
+function ipynbcheckpoints-remove {
+  find . -type d -name .ipynb_checkpoints -exec rm -r {} + 2>/dev/null || true
+}
+
+function pytestcache-remove {
+  find . -type d -name .pytest_cache -exec rm -r {} + 2>/dev/null || true
+}
+
+function build-remove {
+  rm -rf build/ 2>/dev/null || true
+}
+
+# Legacy aliases for backward compatibility
+function debtools {
+  export DIR_NAME=$(basename "$PWD")
+  docker compose -f docker/docker-compose.debtools.yml run --rm debtools "$@"
+}
+
+function build-debian {
+  package:deb:only
+}
+
+function debtools-build {
+  package:deb:docker
+}
+
+################################################################################
+# Project-specific commands end.
+
 # First, set up the environment.
 # (Check the notes at the end when changing this.)
 
@@ -33,142 +327,62 @@ DOCKER_IMAGE_VERSION="latest"
 readonly SCRIPT="$PROJECT_ROOT/$(basename "$0")"
 
 ################################################################################
-# Project-specific commands follow.
-
-function uv-download {
-  # Download the latest version of uv.
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-}
-
-function install {
-  # Install the project dependencies.
-  uv sync
-  uv lock
-}
-
-function update-dev-deps {
-  # Update the development dependencies to latest versions.
-  uv add --dev ruff mypy mypy-extensions
-}
-
-function format {
-  # Run the code style checks with ruff
-  uv run ruff check --fix src
-  uv run ruff format src
-}
-
-function mypy {
-  # Run the type checks with mypy
-  uv run mypy --config-file pyproject.toml src
-}
-
-function lint {
-  uv run ruff check src
-  uv run ruff format --check src
-  mypy # Call mypy function
-}
-
-function docker-build {
-  # Build the Docker image.
-  echo Building docker $(DOCKER_IMAGE):$(DOCKER_VERSION) ...
-  docker build -t ${DOCKER_IMAGE}:${DOCKER_VERSION} . \
-    -f ./docker/Dockerfile --no-cache
-}
-
-function docker-remove {
-  # Remove the Docker image.
-  echo Removing docker $(DOCKER_IMAGE):$(DOCKER_VERSION) ...
-  docker rmi -f ${DOCKER_IMAGE}:${DOCKER_VERSION}
-}
-
-function pycache-remove {
-  # Remove all __pycache__ directories.
-  find . -type d -name __pycache__ -exec rm -r {} +
-}
-
-function dsstore-remove {
-  # Remove all .DS_Store files.
-  find . -type f -name .DS_Store -exec rm {} +
-}
-
-function mypycache-remove {
-  # Remove all mypy cache directories.
-  find . -type d -name .mypy_cache -exec rm -r {} +
-}
-
-function ipynbcheckpoints-remove {
-  # Remove all .ipynb_checkpoints directories.
-  find . -type d -name .ipynb_checkpoints -exec rm -r {} +
-}
-
-function pytestcache-remove {
-  # Remove all pytest cache directories.
-  find . -type d -name .pytest_cache -exec rm -r {} +
-}
-
-function build-remove {
-  # Remove the build directory.
-  rm -rf build/
-}
-
-function update-bindings {
-  # Update the bindings for the project.
-  rm -rf src/halpi2_fw_i2c_postcard
-  pushd ../halpi2-rs-firmware
-  ./run generate-bindings
-  popd
-  cp -a ../halpi2-rs-firmware/halpi2-fw-i2c-postcard/src/halpi2_fw_i2c_postcard src/
-}
-
-function clean {
-  # Remove all temporary files and directories.
-  pycache-remove
-  dsstore-remove
-  mypycache-remove
-  ipynbcheckpoints-remove
-  pytestcache-remove
-  build-remove
-}
-
-# Retrieve the latest code from the remote server.
-function push {
-  rsync -avP --delete --exclude-from='.gitignore' \
-    --exclude='.venv' . halpi2:src/halpid/
-}
-
-function pull {
-  rsync -avP --delete --exclude-from='.gitignore' \
-    --exclude='.venv' halpi2:src/halpid/ .
-}
-
-function build-debian {
-  echo "Building Debian package..."
-  dpkg-buildpackage -us -uc
-}
-
-function debtools {
-  export DIR_NAME=$(basename "$PWD")
-  docker compose -f docker/docker-compose.debtools.yml run --rm debtools "$@"
-}
-
-function debtools-build {
-  # Build the Debian package using the debtools container.
-  debtools ./run build-debian
-}
-
-################################################################################
-# Commands end.
-
-################################################################################
 # Meta-commands and utilities follow.
 
 function help {
-  # list all "public" functions (those not beginning with an underscore)
-  # defined in this file
-  printf "%s <task> [args]\n\nTasks:\n" "${0}"
-  compgen -A function | grep -v "^_" | cat -n
+  #@ Show help for all available commands (auto-generated)
+  #@ Category: Meta
+  printf "%s <command> [args]\n\n" "${0}"
 
-  printf "\nExtended help:\n  Each task has comments for general usage\n"
+  # Extract help information from function comments
+  # This automatically generates help from #@ comments in functions
+  local -A categories
+  local -A descriptions
+  local -A usages
+
+  # Parse all functions and their help comments
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^function[[:space:]]+([^[:space:]{}]+) ]]; then
+      current_func="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ ^[[:space:]]*#@[[:space:]]*Category:[[:space:]]*(.+) ]]; then
+      categories["$current_func"]="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ ^[[:space:]]*#@[[:space:]]*Usage:[[:space:]]*(.+) ]]; then
+      usages["$current_func"]="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ ^[[:space:]]*#@[[:space:]]*(.+) ]] && [[ -z "${descriptions[$current_func]:-}" ]]; then
+      descriptions["$current_func"]="${BASH_REMATCH[1]}"
+    fi
+  done < "$0"
+
+  # Group functions by category and display
+  local -A category_funcs
+  for func in "${!categories[@]}"; do
+    local cat="${categories[$func]}"
+    category_funcs["$cat"]+="$func "
+  done
+
+  # Display in order of preference
+  local ordered_categories=("Core Development" "Testing/CI" "Package Management" "Development Utilities" "Docker" "Setup/Installation" "Meta")
+
+  for category in "${ordered_categories[@]}"; do
+    if [[ -n "${category_funcs[$category]:-}" ]]; then
+      echo "${category} Commands:"
+      for func in ${category_funcs[$category]}; do
+        local usage="${usages[$func]:-$func}"
+        local desc="${descriptions[$func]:-No description}"
+        printf "  %-30s %s\n" "$usage" "$desc"
+      done
+      echo ""
+    fi
+  done
+
+  # Handle uncategorized functions
+  for func in "${!descriptions[@]}"; do
+    if [[ -z "${categories[$func]:-}" ]]; then
+      local usage="${usages[$func]:-$func}"
+      local desc="${descriptions[$func]}"
+      printf "  %-30s %s\n" "$usage" "$desc"
+    fi
+  done
 }
 
 once_hash_array=()
@@ -228,11 +442,6 @@ function _export_unset {
     fi
   done <$tmpfile
   rm $tmpfile
-}
-
-function _test_export_unset {
-  _export_unset .env
-  env | sort
 }
 
 # Dispatch to command. A simpler version would be just "$@" (with the quotes!).

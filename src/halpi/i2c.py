@@ -396,6 +396,41 @@ class HALPIDevice:
         logger.error("Timeout waiting for DFU ready")
         return False
 
+    def usb_port_state(self) -> int:
+        """Get the USB port enable state as a bitfield. Bit 0=USB0, Bit 1=USB1, etc."""
+        return self.i2c_query_byte(0x1A)
+
+    def set_usb_port_state(self, port_bits: int) -> None:
+        """Set the USB port enable state as a bitfield. Bit 0=USB0, Bit 1=USB1, etc."""
+        self.i2c_write_byte(0x1A, port_bits & 0x0F)
+
+    def set_usb_port(self, port: int, enabled: bool) -> None:
+        """Enable or disable a specific USB port (0-3)."""
+        if port < 0 or port > 3:
+            raise ValueError("Port must be 0-3")
+
+        current_state = self.usb_port_state()
+        if enabled:
+            new_state = current_state | (1 << port)
+        else:
+            new_state = current_state & ~(1 << port)
+
+        self.set_usb_port_state(new_state)
+
+    def get_usb_port(self, port: int) -> bool:
+        """Get the enable state of a specific USB port (0-3)."""
+        if port < 0 or port > 3:
+            raise ValueError("Port must be 0-3")
+
+        state = self.usb_port_state()
+        return bool(state & (1 << port))
+
+    def device_id(self) -> str:
+        """Get the device unique ID as a hexadecimal string."""
+        bytes_data = self.i2c_query_bytes(0x25, 8)
+        # Convert bytes to hex string
+        return "".join(f"{byte:02x}" for byte in bytes_data)
+
     def upload_firmware_with_progress(
         self,
         firmware_data: bytes,
