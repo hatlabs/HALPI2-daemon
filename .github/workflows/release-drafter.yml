@@ -60,7 +60,8 @@ jobs:
         if: steps.release_drafter.outputs.upload_url
         run: |
           echo "Starting package upload process..."
-          echo "Upload URL: ${{ steps.release_drafter.outputs.upload_url }}"
+          upload_url_template="${{ steps.release_drafter.outputs.upload_url }}"
+          echo "Upload URL template: $upload_url_template"
 
           package_count=0
           for deb_file in packages/*.deb; do
@@ -69,11 +70,16 @@ jobs:
               filesize=$(stat -c%s "$deb_file")
               echo "Uploading $filename (${filesize} bytes)..."
 
+              # Replace the URL template properly
+              upload_url="${upload_url_template%\{*\}}?name=${filename}"
+              echo "Final upload URL: $upload_url"
+
               response=$(curl -w "%{http_code}" -s -o /tmp/upload_response.json \
+                   -X POST \
                    -H "Authorization: token $GITHUB_TOKEN" \
-                   -H "Content-Type: application/vnd.debian.binary-package" \
+                   -H "Content-Type: application/octet-stream" \
                    --data-binary @"$deb_file" \
-                   "${{ steps.release_drafter.outputs.upload_url }}?name=$filename")
+                   "$upload_url")
 
               echo "HTTP response code: $response"
               if [ "$response" -ge 200 ] && [ "$response" -lt 300 ]; then
