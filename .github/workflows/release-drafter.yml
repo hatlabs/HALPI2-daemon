@@ -36,8 +36,9 @@ jobs:
       - name: List downloaded packages
         run: |
           echo "Downloaded packages:"
-          ls -la packages/
-          ls -1 packages/*.deb 2>/dev/null || echo "No packages found"
+          ls -la packages/ || echo "packages/ directory not found"
+          find packages/ -name "*.deb" -ls 2>/dev/null || echo "No .deb files found"
+          echo "Package count: $(find packages/ -name "*.deb" 2>/dev/null | wc -l)"
 
       # Drafts your next Release notes as Pull Requests are merged into "main"
       - uses: release-drafter/release-drafter@v6
@@ -47,19 +48,49 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Debug release drafter outputs
+      - name: Debug release drafter outputs
+        run: |
+          echo "Release ID: ${{ steps.release_drafter.outputs.id }}"
+          echo "Upload URL: ${{ steps.release_drafter.outputs.upload_url }}"
+          echo "HTML URL: ${{ steps.release_drafter.outputs.html_url }}"
+
       # Upload packages to the draft release
       - name: Upload packages to release
         if: steps.release_drafter.outputs.upload_url
         run: |
+          echo "Starting package upload process..."
+          echo "Upload URL: ${{ steps.release_drafter.outputs.upload_url }}"
+
+          package_count=0
           for deb_file in packages/*.deb; do
             if [ -f "$deb_file" ]; then
               filename=$(basename "$deb_file")
-              echo "Uploading $filename..."
-              curl -H "Authorization: token $GITHUB_TOKEN" \
+              filesize=$(stat -c%s "$deb_file")
+              echo "Uploading $filename (${filesize} bytes)..."
+
+              response=$(curl -w "%{http_code}" -s -o /tmp/upload_response.json \
+                   -H "Authorization: token $GITHUB_TOKEN" \
                    -H "Content-Type: application/vnd.debian.binary-package" \
                    --data-binary @"$deb_file" \
-                   "${{ steps.release_drafter.outputs.upload_url }}?name=$filename"
+                   "${{ steps.release_drafter.outputs.upload_url }}?name=$filename")
+
+              echo "HTTP response code: $response"
+              if [ "$response" -ge 200 ] && [ "$response" -lt 300 ]; then
+                echo "✅ Successfully uploaded $filename"
+                package_count=$((package_count + 1))
+              else
+                echo "❌ Failed to upload $filename"
+                echo "Response body:"
+                cat /tmp/upload_response.json || echo "No response body"
+              fi
             fi
           done
+
+          echo "Upload summary: $package_count packages uploaded"
+          if [ $package_count -eq 0 ]; then
+            echo "❌ No packages were uploaded successfully"
+            exit 1
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
