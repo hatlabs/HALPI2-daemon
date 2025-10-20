@@ -10,7 +10,48 @@ jobs:
   update_release_draft:
     runs-on: ubuntu-latest
     steps:
-      # Drafts your next Release notes as Pull Requests are merged into "master"
+      - uses: actions/checkout@v5
+
+      - name: Read version from VERSION file
+        id: version
+        run: |
+          VERSION=$(cat VERSION | tr -d '\n\r ')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Found version: $VERSION"
+
+      # Build packages using Docker
+      - name: Build packages
+        run: |
+          cd docker
+          docker-compose -f docker-compose.debtools.yml up --build
+
+      - name: Collect built packages
+        run: |
+          mkdir -p packages
+          find . -name "*.deb" -exec cp {} packages/ \;
+          ls -la packages/
+
+      # Drafts your next Release notes as Pull Requests are merged into "main"
       - uses: release-drafter/release-drafter@v6
+        id: release_drafter
+        with:
+          version: ${{ steps.version.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload packages to the draft release
+      - name: Upload packages to release
+        if: steps.release_drafter.outputs.upload_url
+        run: |
+          for deb_file in packages/*.deb; do
+            if [ -f "$deb_file" ]; then
+              filename=$(basename "$deb_file")
+              echo "Uploading $filename..."
+              curl -H "Authorization: token $GITHUB_TOKEN" \
+                   -H "Content-Type: application/vnd.debian.binary-package" \
+                   --data-binary @"$deb_file" \
+                   "${{ steps.release_drafter.outputs.upload_url }}?name=$filename"
+            fi
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

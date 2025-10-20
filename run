@@ -203,8 +203,26 @@ function dev:version:bump {
   fi
 
   echo "🔖 Bumping version from $(release:version) to $new_version..."
+
+  # Update version files using bump2version
   bump2version --new-version "$new_version" patch
+
+  # Set up environment for debian changelog
+  export DEBEMAIL="info@hatlabs.fi"
+  export DEBFULLNAME="Hat Labs CI"
+
+  # Convert version format for Debian (replace - with ~)
+  DEB_VERSION=$(echo "$new_version" | sed 's/-\([a-zA-Z]\)/~\1/g')
+
+  # Create a new debian/changelog entry
+  echo "📝 Creating debian/changelog entry for version $DEB_VERSION..."
+  dch --newversion "$DEB_VERSION" \
+      --distribution stable \
+      --force-distribution \
+      "Development release $new_version. See GitHub for details."
+
   echo "✓ Version bumped to $(release:version)"
+  echo "✓ Debian changelog updated with version $DEB_VERSION"
 }
 
 function dev:version:dry-run {
@@ -222,7 +240,25 @@ function dev:version:dry-run {
 
   echo "Current version: $(release:version)"
   echo "Preview of changes for version $new_version:"
+  echo ""
+
+  # Show bump2version preview
   bump2version --new-version "$new_version" patch --dry-run --verbose
+
+  echo ""
+  echo "Debian changelog entry that would be created:"
+  echo "----------------------------------------"
+
+  # Convert version format for Debian (replace - with ~)
+  DEB_VERSION=$(echo "$new_version" | sed 's/-\([a-zA-Z]\)/~\1/g')
+
+  # Show what the changelog entry would look like
+  echo "halpid ($DEB_VERSION) stable; urgency=medium"
+  echo ""
+  echo "  * Development release $new_version. See GitHub for details."
+  echo ""
+  echo " -- Hat Labs CI <info@hatlabs.fi>  $(date -R)"
+  echo ""
 }
 
 function dev:version:show {

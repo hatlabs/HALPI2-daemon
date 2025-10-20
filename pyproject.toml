@@ -1,6 +1,6 @@
 [project]
 name = "halpid"
-version = "4.0.6"
+version = "4.0.7"
 description = "halpid is a power monitor and watchdog daemon for the HALPI2."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -9,7 +9,7 @@ dependencies = [
     "dateparser>=1.2.1",
     "loguru>=0.7.3",
     "pyyaml>=6.0.2",
-    "rich>=14.0.6",
+    "rich>=14.0.7",
     "smbus2>=0.5.0",
     "typer>=0.16.0",
 ]

@@ -1,46 +1,21 @@
-name: Build and Release Package
+name: Release Published
 
 on:
-  push:
-    tags: ['v*']
+  release:
+    types: [published]
 
 jobs:
-  build-and-release:
-    runs-on: ubuntu-latest-arm64
-    container: debian:bookworm
-
+  notify-apt-repo:
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
-
-    - name: Install build dependencies
+    - name: Extract version from tag
+      id: version
       run: |
-        apt-get update
-        apt-get install -y \
-            debhelper \
-            dh-virtualenv \
-            dh-make \
-            devscripts \
-            build-essential \
-            python3-dev \
-            python3-venv \
-            python3-pip \
-            git \
-            vim \
-            && rm -rf /var/lib/apt/lists/*
-
-
-    - name: Build package
-      run: |
-        dpkg-buildpackage -us -uc
-        mkdir -p dist
-        mv ../*.deb dist/
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: dist/*.deb
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Extract version from tag (remove 'v' prefix if present)
+        VERSION="${{ github.event.release.tag_name }}"
+        VERSION="${VERSION#v}"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Extracted version: $VERSION"
 
     - name: Trigger APT repository update
       uses: peter-evans/repository-dispatch@v3
@@ -51,6 +26,6 @@ jobs:
         client-payload: |
           {
             "package": "${{ github.event.repository.name }}",
-            "version": "${{ github.ref_name }}",
+            "version": "${{ steps.version.outputs.version }}",
             "repository": "${{ github.repository }}"
           }
