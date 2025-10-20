@@ -22,9 +22,16 @@ jobs:
       # Build packages using Docker
       - name: Build packages
         run: |
-          # Create minimal .env file to prevent docker-compose warnings
+          # Create .env.defaults file that the run script expects
+          if [ ! -f .env.defaults ]; then
+            echo "# Default environment variables for CI builds" > .env.defaults
+            echo "# This file provides fallback values when .env doesn't exist" >> .env.defaults
+          fi
+
+          # Ensure we have a minimal .env file to prevent docker-compose warnings
           if [ ! -f .env ]; then
-            echo "# Minimal .env for GitHub Actions" > .env
+            echo "# Environment file for GitHub Actions" > .env
+            echo "# Minimal file to prevent docker-compose warnings" >> .env
           fi
 
           # Use the run script's package build function
@@ -33,8 +40,11 @@ jobs:
       - name: Collect built packages
         run: |
           mkdir -p packages
-          find . -name "*.deb" -exec cp {} packages/ \;
+          # Find .deb files in current and parent directory (dpkg-buildpackage creates them in parent)
+          find . .. -maxdepth 1 -name "*.deb" -exec cp {} packages/ \; 2>/dev/null || true
           ls -la packages/
+          echo "Found packages:"
+          ls -1 packages/*.deb 2>/dev/null || echo "No packages found"
 
       # Drafts your next Release notes as Pull Requests are merged into "main"
       - uses: release-drafter/release-drafter@v6

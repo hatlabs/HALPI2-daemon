@@ -30,8 +30,11 @@ jobs:
       - name: Collect built packages
         run: |
           mkdir -p packages
-          find . -name "*.deb" -exec cp {} packages/ \;
+          # Find .deb files in current and parent directory (dpkg-buildpackage creates them in parent)
+          find . .. -maxdepth 1 -name "*.deb" -exec cp {} packages/ \; 2>/dev/null || true
           ls -la packages/
+          echo "Found packages:"
+          ls -1 packages/*.deb 2>/dev/null || echo "No packages found"
 
       - name: Show package info
         run: |
