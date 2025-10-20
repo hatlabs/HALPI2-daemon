@@ -108,6 +108,26 @@ function package:deb:only {
   echo "✅ Debian package built successfully"
 }
 
+function package:deb:only:ci {
+  #@ Build Debian package for CI (bypasses environment setup)
+  #@ Category: Package Management
+  echo "📦 Creating Debian package (CI mode)..."
+
+  # Skip environment setup that's causing issues in CI
+  # Set required environment variables directly
+  export DEBEMAIL="info@hatlabs.fi"
+  export DEBFULLNAME="Hat Labs CI"
+  export PACKAGE_VERSION=$(release:version)
+
+  # CI mode: Use existing changelog entry created by dev:version:bump
+  # No dch call needed - changelog should already be updated
+  echo "📋 Using existing debian/changelog entry for version $PACKAGE_VERSION"
+
+  dpkg-buildpackage -us -uc -b
+
+  echo "✅ Debian package built successfully (CI mode)"
+}
+
 function package:deb:docker {
   #@ Build Debian package using Docker container
   #@ Category: Package Management
@@ -119,6 +139,21 @@ function package:deb:docker {
   docker compose -f docker/docker-compose.debtools.yml run --rm debtools ./run package:deb:only
 
   echo "✅ Docker-based Debian package built successfully"
+}
+
+function package:deb:docker:ci {
+  #@ Build Debian package using Docker container (CI mode)
+  #@ Category: Package Management
+  echo "🐳 Building Debian package using Docker (CI mode)..."
+
+  # Use Docker container for Debian packaging with CI-specific function
+  echo "🐳 Running Debian packaging in Docker container (CI mode)..."
+  export DIR_NAME=$(basename "$PWD")
+
+  # Run as root in CI to avoid permission issues with mounted volumes
+  docker compose -f docker/docker-compose.debtools.yml run --rm --user root debtools ./run package:deb:only:ci
+
+  echo "✅ Docker-based Debian package built successfully (CI mode)"
 }
 
 function package:docker:build {
@@ -161,19 +196,15 @@ function test:package:workflow {
     return 1
   fi
 
-  # Ensure we have the test workflow file
-  if [ ! -f ".github/workflows/test-package-build.yml" ]; then
-    echo "❌ Error: Test workflow file not found at .github/workflows/test-package-build.yml"
-    return 1
-  fi
-
+  # Test the build-packages job from build.yml
   echo "🐳 Running package build test with act (using linux/amd64 architecture)..."
-  echo "ℹ️  This will test the same steps that run in GitHub Actions"
+  echo "ℹ️  This will test the build-packages job from build.yml"
   echo ""
 
-  # Run the test workflow with act
-  act workflow_dispatch \
-    -W .github/workflows/test-package-build.yml \
+  # Run the build-packages job with act
+  act push \
+    -W .github/workflows/build.yml \
+    --job build-packages \
     --container-architecture linux/amd64 \
     --verbose
 
@@ -181,7 +212,7 @@ function test:package:workflow {
   if [ $exit_code -eq 0 ]; then
     echo ""
     echo "✅ Package build workflow test completed successfully!"
-    echo "🎯 The workflow should have created .deb packages and shown package info"
+    echo "🎯 The workflow should have created .deb packages and uploaded artifacts"
   else
     echo ""
     echo "❌ Package build workflow test failed with exit code: $exit_code"
@@ -202,8 +233,9 @@ function test:package:workflow:dry {
   fi
 
   echo "📋 Showing workflow steps that would run:"
-  act workflow_dispatch \
-    -W .github/workflows/test-package-build.yml \
+  act push \
+    -W .github/workflows/build.yml \
+    --job build-packages \
     --container-architecture linux/amd64 \
     -n
 }
