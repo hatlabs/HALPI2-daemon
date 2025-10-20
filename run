@@ -232,9 +232,12 @@ function test:release:workflow:local {
 
   echo "📋 Step 3: Collecting built packages"
   mkdir -p packages
-  find . -name "*.deb" -exec cp {} packages/ \;
+  # Find .deb files in current and parent directory (dpkg-buildpackage creates them in parent)
+  find . .. -maxdepth 1 -name "*.deb" -exec cp {} packages/ \; 2>/dev/null || true
   echo "Packages found:"
   ls -la packages/
+  echo "Package list:"
+  ls -1 packages/*.deb 2>/dev/null || echo "No packages found"
   echo ""
 
   echo "ℹ️  Step 4: Release drafter (skipped - requires GitHub API)"
