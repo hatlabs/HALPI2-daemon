@@ -149,7 +149,9 @@ function package:deb:docker:ci {
   # Use Docker container for Debian packaging with CI-specific function
   echo "🐳 Running Debian packaging in Docker container (CI mode)..."
   export DIR_NAME=$(basename "$PWD")
-  docker compose -f docker/docker-compose.debtools.yml run --rm debtools ./run package:deb:only:ci
+
+  # Run as root in CI to avoid permission issues with mounted volumes
+  docker compose -f docker/docker-compose.debtools.yml run --rm --user root debtools ./run package:deb:only:ci
 
   echo "✅ Docker-based Debian package built successfully (CI mode)"
 }
