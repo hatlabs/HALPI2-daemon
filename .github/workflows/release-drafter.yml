@@ -19,24 +19,17 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Found version: $VERSION"
 
-      # Build packages using Docker (CI mode to bypass environment issues)
-      - name: Build packages
-        run: |
-          # Create minimal .env file to prevent docker-compose warnings
-          if [ ! -f .env ]; then
-            echo "# Environment file for GitHub Actions" > .env
-          fi
+      # Download packages built by the build workflow
+      - name: Download packages from build workflow
+        uses: actions/download-artifact@v4
+        with:
+          name: debian-packages-${{ steps.version.outputs.version }}
+          path: packages/
 
-          # Use the CI-specific package build function that bypasses problematic environment setup
-          ./run package:deb:docker:ci
-
-      - name: Collect built packages
+      - name: List downloaded packages
         run: |
-          mkdir -p packages
-          # Find .deb files in current and parent directory (dpkg-buildpackage creates them in parent)
-          find . .. -maxdepth 1 -name "*.deb" -exec cp {} packages/ \; 2>/dev/null || true
+          echo "Downloaded packages:"
           ls -la packages/
-          echo "Found packages:"
           ls -1 packages/*.deb 2>/dev/null || echo "No packages found"
 
       # Drafts your next Release notes as Pull Requests are merged into "main"

@@ -3,36 +3,7 @@ name: build
 on: [push, pull_request]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
-
-    steps:
-    - uses: actions/checkout@v5
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install uv
-      run: ./run uv-download
-
-    - name: Set up cache
-      uses: actions/cache@v4
-      with:
-        path: .venv
-        key: venv-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
-    - name: Install dependencies
-      run: |
-        ./run install
-
-    - name: Run style checks
-      run: |
-        ./run lint
-
-  # Separate job for package building (only on pushes to debug package build issues)
+  # Build packages on every push
   build-packages:
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
@@ -46,7 +17,6 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Found version: $VERSION"
 
-    # Build packages using Docker (CI mode to bypass environment issues)
     - name: Build packages
       run: |
         # Create minimal .env file to prevent docker-compose warnings
@@ -54,7 +24,7 @@ jobs:
           echo "# Environment file for GitHub Actions" > .env
         fi
 
-        # Use the CI-specific package build function that bypasses problematic environment setup
+        # Use the CI-specific package build function
         ./run package:deb:docker:ci
 
     - name: Collect built packages
@@ -72,4 +42,4 @@ jobs:
       with:
         name: debian-packages-${{ steps.version.outputs.version }}
         path: packages/*.deb
-        retention-days: 7
+        retention-days: 30
