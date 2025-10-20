@@ -1,8 +1,9 @@
 # Release drafter configuration https://github.com/release-drafter/release-drafter#configuration
 # Emojis were chosen to match the https://gitmoji.carloscuesta.me/
+# Version is read from VERSION file via the workflow
 
-name-template: "Version $NEXT_PATCH_VERSION 🦑"
-tag-template: "v$NEXT_PATCH_VERSION"
+name-template: "Version $INPUT_VERSION 🦑"
+tag-template: "v$INPUT_VERSION"
 
 categories:
   - title: ":rocket: Features"
