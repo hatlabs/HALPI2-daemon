@@ -23,7 +23,7 @@ jobs:
       - name: Build packages
         run: |
           cd docker
-          docker-compose -f docker-compose.debtools.yml up --build
+          docker compose -f docker-compose.debtools.yml up --build
 
       - name: Collect built packages
         run: |
