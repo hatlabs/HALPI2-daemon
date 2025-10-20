@@ -1,13 +1,66 @@
 #!/usr/bin/make -f
 
-export DH_VIRTUALENV_INSTALL_ROOT=/opt/venvs
-export DH_VIRTUALENV_ARGUMENTS=--python python3 --builtin-venv
+VENV_PATH=/opt/venvs/halpid
+BUILD_VENV=./build_venv
+PYTHON_VERSION=3.13
 
 %:
-	dh $@ --with python-virtualenv
+	dh $@
 
-override_dh_virtualenv:
-	dh_virtualenv --python python3 --builtin-venv
+override_dh_auto_build:
+	# Ensure uv is available and in PATH
+	export PATH="/home/builder/.local/bin:/root/.local/bin:$$PATH"; \
+	# Verify uv is available
+	which uv > /dev/null || { echo "ERROR: uv not found in PATH"; exit 1; }; \
+	# Create virtual environment using uv with Python $(PYTHON_VERSION) (forces download of standalone binary)
+	uv venv --python $(PYTHON_VERSION) --seed $(BUILD_VENV) || { echo "ERROR: Failed to create virtual environment"; exit 1; }; \
+	# Install project and dependencies with uv
+	uv pip install --python $(BUILD_VENV)/bin/python . || { echo "ERROR: Failed to install packages"; exit 1; }
 
-# Skip tests during build if you have any
+override_dh_auto_install:
+	# Install the virtual environment to the final location
+	install -d $(CURDIR)/debian/halpid$(VENV_PATH)
+	# Verify build environment exists
+	test -d $(BUILD_VENV) || { echo "ERROR: Build venv $(BUILD_VENV) not found"; exit 1; }
+	cp -r $(BUILD_VENV)/* $(CURDIR)/debian/halpid$(VENV_PATH)/
+	# Replace symlinked Python with actual binary and standard library for self-contained deployment
+	if [ -L "$(CURDIR)/debian/halpid$(VENV_PATH)/bin/python" ]; then \
+		PYTHON_TARGET=$$(readlink "$(CURDIR)/debian/halpid$(VENV_PATH)/bin/python"); \
+		PYTHON_PREFIX=$$(dirname "$$(dirname "$$PYTHON_TARGET")"); \
+		echo "Converting Python symlink to self-contained binary: $$PYTHON_TARGET"; \
+		test -f "$$PYTHON_TARGET" || { echo "ERROR: Python binary not found: $$PYTHON_TARGET"; exit 1; }; \
+		rm "$(CURDIR)/debian/halpid$(VENV_PATH)/bin/python"; \
+		cp "$$PYTHON_TARGET" "$(CURDIR)/debian/halpid$(VENV_PATH)/bin/python" || { echo "ERROR: Failed to copy Python binary"; exit 1; }; \
+		if [ -d "$$PYTHON_PREFIX/lib/python$(PYTHON_VERSION)" ]; then \
+			echo "Copying Python standard library from: $$PYTHON_PREFIX/lib/python$(PYTHON_VERSION)"; \
+			cp -r "$$PYTHON_PREFIX/lib/python$(PYTHON_VERSION)"/* "$(CURDIR)/debian/halpid$(VENV_PATH)/lib/python$(PYTHON_VERSION)/" || { echo "ERROR: Failed to copy standard library"; exit 1; }; \
+		else \
+			echo "WARNING: Python standard library not found at $$PYTHON_PREFIX/lib/python$(PYTHON_VERSION)"; \
+		fi; \
+	else \
+		echo "INFO: Python binary is already a regular file, not a symlink"; \
+	fi
+	# Fix remaining python symlinks to be relative
+	cd $(CURDIR)/debian/halpid$(VENV_PATH)/bin && \
+	for link in python3 python$(PYTHON_VERSION); do \
+		if [ -L "$$link" ]; then \
+			rm "$$link" && ln -sf python "$$link"; \
+		fi; \
+	done
+	# Fix pyvenv.cfg to point to the target installation path
+	sed -i 's|^home = .*|home = /opt/venvs/halpid/bin|' $(CURDIR)/debian/halpid$(VENV_PATH)/pyvenv.cfg
+	# Fix shebang lines to point to the target installation path
+	find $(CURDIR)/debian/halpid$(VENV_PATH)/bin -type f -exec sed -i '1s|#!/.*python.*|#!/opt/venvs/halpid/bin/python|' {} \;
+	# Verify the installation
+	@echo "Verifying self-contained Python installation..."
+	test -x "$(CURDIR)/debian/halpid$(VENV_PATH)/bin/python" || { echo "ERROR: Python binary not executable"; exit 1; }
+	test -f "$(CURDIR)/debian/halpid$(VENV_PATH)/pyvenv.cfg" || { echo "ERROR: pyvenv.cfg missing"; exit 1; }
+	grep -q "home = /opt/venvs/halpid/bin" "$(CURDIR)/debian/halpid$(VENV_PATH)/pyvenv.cfg" || { echo "ERROR: pyvenv.cfg not properly updated"; exit 1; }
+	@echo "✅ Self-contained Python installation verified"
+
+override_dh_auto_clean:
+	rm -rf $(BUILD_VENV)
+	rm -rf .venv
+
+# Skip tests during build
 override_dh_auto_test:
