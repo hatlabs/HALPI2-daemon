@@ -31,3 +31,52 @@ jobs:
     - name: Run style checks
       run: |
         ./run lint
+
+  # Separate job for package building (only on pushes to debug package build issues)
+  build-packages:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Read version from VERSION file
+      id: version
+      run: |
+        VERSION=$(cat VERSION | tr -d '\n\r ')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Found version: $VERSION"
+
+    # Build packages using Docker
+    - name: Build packages
+      run: |
+        # Create .env.defaults file that the run script expects
+        if [ ! -f .env.defaults ]; then
+          echo "# Default environment variables for CI builds" > .env.defaults
+          echo "# This file provides fallback values when .env doesn't exist" >> .env.defaults
+        fi
+
+        # Ensure we have a minimal .env file to prevent docker-compose warnings
+        if [ ! -f .env ]; then
+          echo "# Environment file for GitHub Actions" > .env
+          echo "# Minimal file to prevent docker-compose warnings" >> .env
+        fi
+
+        # Use the run script's package build function
+        ./run package:deb:docker
+
+    - name: Collect built packages
+      run: |
+        mkdir -p packages
+        # Find .deb files in current and parent directory (dpkg-buildpackage creates them in parent)
+        find . .. -maxdepth 1 -name "*.deb" -exec cp {} packages/ \; 2>/dev/null || true
+        ls -la packages/
+        echo "Found packages:"
+        ls -1 packages/*.deb 2>/dev/null || echo "No packages found"
+
+    - name: Upload packages as artifacts
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: debian-packages-${{ steps.version.outputs.version }}
+        path: packages/*.deb
+        retention-days: 7
