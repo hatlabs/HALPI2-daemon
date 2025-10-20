@@ -1,14 +1,18 @@
 name: Release Drafter
 
 on:
-  push:
-    # branches to consider in the event; optional, defaults to all
+  workflow_run:
+    workflows: ["build"]
+    types:
+      - completed
     branches:
       - main
 
 jobs:
   update_release_draft:
     runs-on: ubuntu-latest
+    # Only run if the build workflow succeeded
+    if: github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v5
 
@@ -25,6 +29,9 @@ jobs:
         with:
           name: debian-packages-${{ steps.version.outputs.version }}
           path: packages/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
 
       - name: List downloaded packages
         run: |
