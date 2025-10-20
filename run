@@ -150,6 +150,107 @@ function ci:build {
   echo "✅ CI build pipeline completed successfully"
 }
 
+function test:package:workflow {
+  #@ Test the package build workflow locally using act
+  #@ Category: Testing/CI
+  echo "🧪 Testing package build workflow with act..."
+
+  # Check if act is installed
+  if ! command -v act &> /dev/null; then
+    echo "❌ Error: 'act' is not installed. Install with: brew install act"
+    return 1
+  fi
+
+  # Ensure we have the test workflow file
+  if [ ! -f ".github/workflows/test-package-build.yml" ]; then
+    echo "❌ Error: Test workflow file not found at .github/workflows/test-package-build.yml"
+    return 1
+  fi
+
+  echo "🐳 Running package build test with act (using linux/amd64 architecture)..."
+  echo "ℹ️  This will test the same steps that run in GitHub Actions"
+  echo ""
+
+  # Run the test workflow with act
+  act workflow_dispatch \
+    -W .github/workflows/test-package-build.yml \
+    --container-architecture linux/amd64 \
+    --verbose
+
+  local exit_code=$?
+  if [ $exit_code -eq 0 ]; then
+    echo ""
+    echo "✅ Package build workflow test completed successfully!"
+    echo "🎯 The workflow should have created .deb packages and shown package info"
+  else
+    echo ""
+    echo "❌ Package build workflow test failed with exit code: $exit_code"
+    echo "💡 Check the output above for errors"
+    return $exit_code
+  fi
+}
+
+function test:package:workflow:dry {
+  #@ Dry run test of the package build workflow (shows steps without executing)
+  #@ Category: Testing/CI
+  echo "🧪 Dry run test of package build workflow..."
+
+  # Check if act is installed
+  if ! command -v act &> /dev/null; then
+    echo "❌ Error: 'act' is not installed. Install with: brew install act"
+    return 1
+  fi
+
+  echo "📋 Showing workflow steps that would run:"
+  act workflow_dispatch \
+    -W .github/workflows/test-package-build.yml \
+    --container-architecture linux/amd64 \
+    -n
+}
+
+function test:release:workflow:local {
+  #@ Test the release workflow steps locally (without GitHub API calls)
+  #@ Category: Testing/CI
+  echo "🧪 Testing release workflow steps locally..."
+
+  echo "📖 Step 1: Reading version from VERSION file"
+  VERSION=$(cat VERSION | tr -d '\n\r ')
+  echo "version=$VERSION"
+  echo "Found version: $VERSION"
+  echo ""
+
+  echo "📦 Step 2: Building packages"
+  # Create minimal .env file to prevent docker-compose warnings
+  if [ ! -f .env ]; then
+    echo "# Minimal .env for local testing" > .env
+    echo "Created minimal .env file"
+  fi
+
+  # Use the run script's package build function
+  ./run package:deb:docker
+  echo ""
+
+  echo "📋 Step 3: Collecting built packages"
+  mkdir -p packages
+  find . -name "*.deb" -exec cp {} packages/ \;
+  echo "Packages found:"
+  ls -la packages/
+  echo ""
+
+  echo "ℹ️  Step 4: Release drafter (skipped - requires GitHub API)"
+  echo "🚫 Step 5: Upload packages (skipped - requires GitHub API)"
+  echo ""
+
+  if [ -n "$(ls -A packages/ 2>/dev/null)" ]; then
+    echo "✅ Release workflow local test completed successfully!"
+    echo "📦 Generated packages are in the 'packages/' directory"
+    echo "🎯 In the real workflow, these would be attached to a draft release"
+  else
+    echo "❌ Release workflow local test failed - no packages were generated"
+    return 1
+  fi
+}
+
 ################################################################################
 # Development Utilities Commands
 

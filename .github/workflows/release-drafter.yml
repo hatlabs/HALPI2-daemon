@@ -22,8 +22,13 @@ jobs:
       # Build packages using Docker
       - name: Build packages
         run: |
-          cd docker
-          docker compose -f docker-compose.debtools.yml up --build
+          # Create minimal .env file to prevent docker-compose warnings
+          if [ ! -f .env ]; then
+            echo "# Minimal .env for GitHub Actions" > .env
+          fi
+
+          # Use the run script's package build function
+          ./run package:deb:docker
 
       - name: Collect built packages
         run: |

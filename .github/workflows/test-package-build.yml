@@ -1,0 +1,44 @@
+name: Test Package Build
+
+on:
+  workflow_dispatch:  # Manual trigger for testing
+
+jobs:
+  test_package_build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Read version from VERSION file
+        id: version
+        run: |
+          VERSION=$(cat VERSION | tr -d '\n\r ')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Found version: $VERSION"
+
+      # Build packages using Docker
+      - name: Build packages
+        run: |
+          # Create minimal .env file to prevent docker-compose warnings
+          if [ ! -f .env ]; then
+            echo "# Minimal .env for GitHub Actions" > .env
+          fi
+
+          # Use the run script's package build function
+          ./run package:deb:docker
+
+      - name: Collect built packages
+        run: |
+          mkdir -p packages
+          find . -name "*.deb" -exec cp {} packages/ \;
+          ls -la packages/
+
+      - name: Show package info
+        run: |
+          for deb_file in packages/*.deb; do
+            if [ -f "$deb_file" ]; then
+              echo "=== Package: $deb_file ==="
+              dpkg-deb --info "$deb_file"
+              echo ""
+            fi
+          done
