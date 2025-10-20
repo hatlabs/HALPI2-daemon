@@ -46,23 +46,16 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Found version: $VERSION"
 
-    # Build packages using Docker
+    # Build packages using Docker (CI mode to bypass environment issues)
     - name: Build packages
       run: |
-        # Create .env.defaults file that the run script expects
-        if [ ! -f .env.defaults ]; then
-          echo "# Default environment variables for CI builds" > .env.defaults
-          echo "# This file provides fallback values when .env doesn't exist" >> .env.defaults
-        fi
-
-        # Ensure we have a minimal .env file to prevent docker-compose warnings
+        # Create minimal .env file to prevent docker-compose warnings
         if [ ! -f .env ]; then
           echo "# Environment file for GitHub Actions" > .env
-          echo "# Minimal file to prevent docker-compose warnings" >> .env
         fi
 
-        # Use the run script's package build function
-        ./run package:deb:docker
+        # Use the CI-specific package build function that bypasses problematic environment setup
+        ./run package:deb:docker:ci
 
     - name: Collect built packages
       run: |

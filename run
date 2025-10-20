@@ -108,6 +108,29 @@ function package:deb:only {
   echo "✅ Debian package built successfully"
 }
 
+function package:deb:only:ci {
+  #@ Build Debian package for CI (bypasses environment setup)
+  #@ Category: Package Management
+  echo "📦 Creating Debian package (CI mode)..."
+
+  # Skip environment setup that's causing issues in CI
+  # Set required environment variables directly
+  export DEBEMAIL="info@hatlabs.fi"
+  export DEBFULLNAME="Hat Labs CI"
+  export PACKAGE_VERSION=$(release:version)
+  DEB_VERSION=$(echo "$PACKAGE_VERSION" | sed 's/-\([a-zA-Z]\)/~\1/g')
+
+  # Create a new changelog entry
+  dch --newversion "$DEB_VERSION" \
+      --distribution stable \
+      --force-distribution \
+      "Automated release $PACKAGE_VERSION. See GitHub for details."
+
+  dpkg-buildpackage -us -uc -b
+
+  echo "✅ Debian package built successfully (CI mode)"
+}
+
 function package:deb:docker {
   #@ Build Debian package using Docker container
   #@ Category: Package Management
@@ -119,6 +142,19 @@ function package:deb:docker {
   docker compose -f docker/docker-compose.debtools.yml run --rm debtools ./run package:deb:only
 
   echo "✅ Docker-based Debian package built successfully"
+}
+
+function package:deb:docker:ci {
+  #@ Build Debian package using Docker container (CI mode)
+  #@ Category: Package Management
+  echo "🐳 Building Debian package using Docker (CI mode)..."
+
+  # Use Docker container for Debian packaging with CI-specific function
+  echo "🐳 Running Debian packaging in Docker container (CI mode)..."
+  export DIR_NAME=$(basename "$PWD")
+  docker compose -f docker/docker-compose.debtools.yml run --rm debtools ./run package:deb:only:ci
+
+  echo "✅ Docker-based Debian package built successfully (CI mode)"
 }
 
 function package:docker:build {
