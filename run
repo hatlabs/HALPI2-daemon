@@ -118,13 +118,10 @@ function package:deb:only:ci {
   export DEBEMAIL="info@hatlabs.fi"
   export DEBFULLNAME="Hat Labs CI"
   export PACKAGE_VERSION=$(release:version)
-  DEB_VERSION=$(echo "$PACKAGE_VERSION" | sed 's/-\([a-zA-Z]\)/~\1/g')
 
-  # Create a new changelog entry
-  dch --newversion "$DEB_VERSION" \
-      --distribution stable \
-      --force-distribution \
-      "Automated release $PACKAGE_VERSION. See GitHub for details."
+  # CI mode: Use existing changelog entry created by dev:version:bump
+  # No dch call needed - changelog should already be updated
+  echo "📋 Using existing debian/changelog entry for version $PACKAGE_VERSION"
 
   dpkg-buildpackage -us -uc -b
 
