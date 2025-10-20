@@ -1,3 +1,9 @@
+halpid (4.0.7) stable; urgency=medium
+
+  * Automated release 4.0.7. See GitHub for details.
+
+ -- Hat Labs CI <info@hatlabs.fi>  Mon, 20 Oct 2025 13:39:52 +0000
+
 halpid (4.0.6) stable; urgency=medium
 
   * Automated release 4.0.6. See GitHub for details.
