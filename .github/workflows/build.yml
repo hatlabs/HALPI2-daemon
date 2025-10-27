@@ -38,7 +38,7 @@ jobs:
 
     - name: Upload packages as artifacts
       if: success()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: debian-packages-${{ steps.version.outputs.version }}
         path: packages/*.deb
