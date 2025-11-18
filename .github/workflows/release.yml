@@ -1,56 +1,32 @@
-name: Build and Release Package
+name: Release Published
 
 on:
-  push:
-    tags: ['v*']
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+env:
+  APT_DISTRO: ${{ vars.APT_DISTRO || 'trixie' }}
+  APT_COMPONENT: ${{ vars.APT_COMPONENT || 'hatlabs' }}
 
 jobs:
-  build-and-release:
-    runs-on: ubuntu-latest-arm64
-    container: debian:bookworm
-
+  trigger-packaging:
+    runs-on: ubuntu-latest
+    # Only handle stable releases - pre-releases are handled by auto-prerelease.yml
+    if: ${{ github.event.release.prerelease == false }}
     steps:
-    - uses: actions/checkout@v5
-
-    - name: Install build dependencies
-      run: |
-        apt-get update
-        apt-get install -y \
-            debhelper \
-            dh-virtualenv \
-            dh-make \
-            devscripts \
-            build-essential \
-            python3-dev \
-            python3-venv \
-            python3-pip \
-            git \
-            vim \
-            && rm -rf /var/lib/apt/lists/*
-
-
-    - name: Build package
-      run: |
-        dpkg-buildpackage -us -uc
-        mkdir -p dist
-        mv ../*.deb dist/
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: dist/*.deb
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Trigger APT repository update
+    - name: Trigger APT repository
       uses: peter-evans/repository-dispatch@v3
       with:
-        token: ${{ secrets.APT_REPO_PAT }}
+        token: ${{ secrets.REPO_DISPATCH_PAT }}
         repository: hatlabs/apt.hatlabs.fi
         event-type: package-updated
         client-payload: |
           {
-            "package": "${{ github.event.repository.name }}",
-            "version": "${{ github.ref_name }}",
-            "repository": "${{ github.repository }}"
+            "repository": "${{ github.repository }}",
+            "distro": "${{ env.APT_DISTRO }}",
+            "channel": "stable",
+            "component": "${{ env.APT_COMPONENT }}"
           }
