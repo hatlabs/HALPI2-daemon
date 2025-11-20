@@ -74,6 +74,41 @@ function release:version {
   cat VERSION
 }
 
+function bumpversion {
+  #@ Bump version using bumpversion tool (patch|minor|major)
+  #@ Category: Core Development
+  local BUMP_TYPE="${1:-}"
+
+  if [[ -z "$BUMP_TYPE" ]]; then
+    echo "Error: version bump type required"
+    echo "Usage: ./run bumpversion [patch|minor|major]"
+    exit 1
+  fi
+
+  if [[ ! "$BUMP_TYPE" =~ ^(patch|minor|major)$ ]]; then
+    echo "Error: invalid bump type '$BUMP_TYPE'"
+    echo "Usage: ./run bumpversion [patch|minor|major]"
+    exit 1
+  fi
+
+  echo "🔢 Bumping $BUMP_TYPE version..."
+
+  # Check if bumpversion is installed
+  if ! command -v bumpversion &> /dev/null; then
+    echo "Error: bumpversion not installed"
+    echo "Install with: pip install bump2version"
+    exit 1
+  fi
+
+  # Run bumpversion
+  bumpversion "$BUMP_TYPE"
+
+  echo "✅ Version bumped successfully"
+  echo "📝 Remember to commit the version changes:"
+  echo "   git add VERSION pyproject.toml .bumpversion.cfg"
+  echo "   git commit -m \"chore: bump version to \$(cat VERSION)\""
+}
+
 ################################################################################
 # Package Management Commands
 
