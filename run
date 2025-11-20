@@ -68,61 +68,26 @@ function clean {
   build-remove
 }
 
-function release-version {
+function version {
   #@ Show current project version
   #@ Category: Core Development
   cat VERSION
 }
 
 function bumpversion {
-  #@ Bump version using bumpversion tool (patch|minor|major)
+  #@ Bump version using bumpversion tool
+  #@ Usage: bumpversion [patch|minor|major] or bumpversion --new-version X.Y.Z patch
   #@ Category: Core Development
-  local BUMP_TYPE="${1:-}"
-
-  if [[ -z "$BUMP_TYPE" ]]; then
-    echo "Error: version bump type required"
-    echo "Usage: ./run bumpversion [patch|minor|major]"
-    exit 1
-  fi
-
-  if [[ ! "$BUMP_TYPE" =~ ^(patch|minor|major)$ ]]; then
-    echo "Error: invalid bump type '$BUMP_TYPE'"
-    echo "Usage: ./run bumpversion [patch|minor|major]"
-    exit 1
-  fi
-
-  echo "🔢 Bumping $BUMP_TYPE version..."
-
-  # Check if bumpversion is installed
-  if ! command -v bumpversion &> /dev/null; then
-    echo "Error: bumpversion not installed"
-    echo "Install with: pip install bump2version"
-    exit 1
-  fi
-
-  # Run bumpversion
-  bumpversion "$BUMP_TYPE"
-
-  echo "✅ Version bumped successfully"
-  echo "📝 Remember to commit the version changes:"
-  echo "   git add VERSION pyproject.toml .bumpversion.cfg"
-  echo "   git commit -m \"chore: bump version to \$(cat VERSION)\""
+  command bumpversion "$@"
 }
 
 ################################################################################
 # Package Management Commands
 
-function package-deb {
+function build-deb {
   #@ Build Debian package (native)
   #@ Category: Package Management
   echo "🏗️ Building Debian package..."
-  package-deb-only
-}
-
-function package-deb-only {
-  #@ Build Debian package from existing artifacts (internal)
-  #@ Category: Package Management
-  echo "📦 Creating Debian package..."
 
   # Set up environment
   dev-env
@@ -143,7 +108,7 @@ function package-deb-only {
   echo "✅ Debian package built successfully"
 }
 
-function package-deb-docker {
+function docker-build-deb {
   #@ Build Debian package using Docker container
   #@ Category: Package Management
   echo "🐳 Building Debian package using Docker..."
@@ -151,12 +116,12 @@ function package-deb-docker {
   # Use Docker container for Debian packaging
   echo "🐳 Running Debian packaging in Docker container..."
   export DIR_NAME=$(basename "$PWD")
-  docker compose -f docker/docker-compose.debtools.yml run --rm debtools ./run package-deb-only
+  debtools ./run build-deb-only
 
   echo "✅ Docker-based Debian package built successfully"
 }
 
-function package-docker-build {
+function build-docker-tools {
   #@ Build Docker tools image
   #@ Category: Package Management
   export DIR_NAME=$(basename "$PWD")
@@ -181,7 +146,7 @@ function ci-build {
   echo "🚀 Running full CI build pipeline..."
   clean
   ci-check
-  package-deb-docker
+  docker-build-deb
   echo "✅ CI build pipeline completed successfully"
 }
 
@@ -224,52 +189,36 @@ function dev-env {
   _env
 }
 
-function dev-version-bump {
-  #@ Bump to specific version (e.g. 3.2.0)
-  #@ Usage: dev-version-bump <version>
+function debtools {
+  #@ Run a command inside the debtools Docker container
+  #@ Usage: debtools <command> [args]
   #@ Category: Development Utilities
-  local new_version="${1:-}"
-
-  if [ -z "$new_version" ]; then
-    echo "Error: Version required. Usage: dev-version-bump <new_version>"
-    echo "Current version: $(release-version)"
-    echo "Example: ./run dev-version-bump 3.2.0"
-    exit 1
-  fi
-
-  echo "🔖 Bumping version from $(release-version) to $new_version..."
-  bump2version --new-version "$new_version" patch
-  echo "✓ Version bumped to $(release-version)"
+  export DIR_NAME=$(basename "$PWD")
+  docker compose -f docker/docker-compose.debtools.yml run --rm debtools "$@"
 }
 
-function dev-version-dry-run {
+function bumpversion-dry-run {
   #@ Preview version change without applying
-  #@ Usage: dev-version-dry-run <version>
+  #@ Usage: bumpversion-dry-run <version>
   #@ Category: Development Utilities
   local new_version="${1:-}"
 
   if [ -z "$new_version" ]; then
-    echo "Error: Version required. Usage: dev-version-dry-run <new_version>"
-    echo "Current version: $(release-version)"
-    echo "Example: ./run dev-version-dry-run 3.2.0"
+    echo "Error: Version required. Usage: bumpversion-dry-run <new_version>"
+    echo "Current version: $(version)"
+    echo "Example: ./run bumpversion-dry-run 3.2.0"
     exit 1
   fi
 
-  echo "Current version: $(release-version)"
+  echo "Current version: $(version)"
   echo "Preview of changes for version $new_version:"
   bump2version --new-version "$new_version" patch --dry-run --verbose
-}
-
-function dev-version-show {
-  #@ Show current version
-  #@ Category: Development Utilities
-  release-version
 }
 
 ################################################################################
 # Docker Commands
 
-function docker-build {
+function build-docker {
   #@ Build the Docker image
   #@ Category: Docker
   echo Building docker ${DOCKER_IMAGE}:${DOCKER_IMAGE_VERSION} ...
@@ -277,7 +226,7 @@ function docker-build {
     -f ./docker/Dockerfile --no-cache
 }
 
-function docker-remove {
+function remove-docker {
   #@ Remove the Docker image
   #@ Category: Docker
   echo Removing docker ${DOCKER_IMAGE}:${DOCKER_IMAGE_VERSION} ...
@@ -287,7 +236,7 @@ function docker-remove {
 ################################################################################
 # Setup/Installation Commands
 
-function uv-download {
+function install-uv {
   #@ Download and install the latest version of uv
   #@ Category: Setup/Installation
   curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -320,34 +269,6 @@ function build-remove {
   rm -rf build/ 2>/dev/null || true
 }
 
-# Legacy aliases for backward compatibility
-function debtools {
-  export DIR_NAME=$(basename "$PWD")
-  docker compose -f docker/docker-compose.debtools.yml run --rm debtools "$@"
-}
-
-function build-debian {
-  package-deb-only
-}
-
-function debtools-build {
-  package-deb-docker
-}
-
-# Colon-separated aliases (deprecated, use hyphen-separated)
-function release:version { release-version "$@"; }
-function package:deb { package-deb "$@"; }
-function package:deb:only { package-deb-only "$@"; }
-function package:deb:docker { package-deb-docker "$@"; }
-function package:docker:build { package-docker-build "$@"; }
-function ci:check { ci-check "$@"; }
-function ci:build { ci-build "$@"; }
-function dev:env { dev-env "$@"; }
-function dev:version:bump { dev-version-bump "$@"; }
-function dev:version:dry-run { dev-version-dry-run "$@"; }
-function dev:version:show { dev-version-show "$@"; }
-function docker:build { docker-build "$@"; }
-function docker:remove { docker-remove "$@"; }
 
 ################################################################################
 # Project-specific commands end.
