@@ -68,33 +68,33 @@ function clean {
   build-remove
 }
 
-function release:version {
+function version {
   #@ Show current project version
   #@ Category: Core Development
   cat VERSION
 }
 
+function bumpversion {
+  #@ Bump version using bumpversion tool
+  #@ Usage: bumpversion [patch|minor|major] or bumpversion --new-version X.Y.Z patch
+  #@ Category: Core Development
+  command bumpversion "$@"
+}
+
 ################################################################################
 # Package Management Commands
 
-function package:deb {
+function build-deb {
   #@ Build Debian package (native)
   #@ Category: Package Management
   echo "🏗️ Building Debian package..."
-  package:deb:only
-}
-
-function package:deb:only {
-  #@ Build Debian package from existing artifacts (internal)
-  #@ Category: Package Management
-  echo "📦 Creating Debian package..."
 
   # Set up environment
-  dev:env
+  dev-env
 
   export DEBEMAIL="info@hatlabs.fi"
   export DEBFULLNAME="Hat Labs CI"
-  export PACKAGE_VERSION=$(release:version)
+  export PACKAGE_VERSION=$(release-version)
   DEB_VERSION=$(echo "$PACKAGE_VERSION" | sed 's/-\([a-zA-Z]\)/~\1/g')
 
   # Create a new changelog entry
@@ -108,27 +108,7 @@ function package:deb:only {
   echo "✅ Debian package built successfully"
 }
 
-function package:deb:only:ci {
-  #@ Build Debian package for CI (bypasses environment setup)
-  #@ Category: Package Management
-  echo "📦 Creating Debian package (CI mode)..."
-
-  # Skip environment setup that's causing issues in CI
-  # Set required environment variables directly
-  export DEBEMAIL="info@hatlabs.fi"
-  export DEBFULLNAME="Hat Labs CI"
-  export PACKAGE_VERSION=$(release:version)
-
-  # CI mode: Use existing changelog entry created by dev:version:bump
-  # No dch call needed - changelog should already be updated
-  echo "📋 Using existing debian/changelog entry for version $PACKAGE_VERSION"
-
-  dpkg-buildpackage -us -uc -b
-
-  echo "✅ Debian package built successfully (CI mode)"
-}
-
-function package:deb:docker {
+function docker-build-deb {
   #@ Build Debian package using Docker container
   #@ Category: Package Management
   echo "🐳 Building Debian package using Docker..."
@@ -136,27 +116,12 @@ function package:deb:docker {
   # Use Docker container for Debian packaging
   echo "🐳 Running Debian packaging in Docker container..."
   export DIR_NAME=$(basename "$PWD")
-  docker compose -f docker/docker-compose.debtools.yml run --rm debtools ./run package:deb:only
+  debtools ./run build-deb-only
 
   echo "✅ Docker-based Debian package built successfully"
 }
 
-function package:deb:docker:ci {
-  #@ Build Debian package using Docker container (CI mode)
-  #@ Category: Package Management
-  echo "🐳 Building Debian package using Docker (CI mode)..."
-
-  # Use Docker container for Debian packaging with CI-specific function
-  echo "🐳 Running Debian packaging in Docker container (CI mode)..."
-  export DIR_NAME=$(basename "$PWD")
-
-  # Run as root in CI to avoid permission issues with mounted volumes
-  docker compose -f docker/docker-compose.debtools.yml run --rm --user root debtools ./run package:deb:only:ci
-
-  echo "✅ Docker-based Debian package built successfully (CI mode)"
-}
-
-function package:docker:build {
+function build-docker-tools {
   #@ Build Docker tools image
   #@ Category: Package Management
   export DIR_NAME=$(basename "$PWD")
@@ -166,7 +131,7 @@ function package:docker:build {
 ################################################################################
 # Testing/CI Commands
 
-function ci:check {
+function ci-check {
   #@ Run CI verification checks (lint + test)
   #@ Category: Testing/CI
   echo "🔍 Running CI verification checks..."
@@ -175,115 +140,14 @@ function ci:check {
   echo "✅ CI checks passed"
 }
 
-function ci:build {
+function ci-build {
   #@ Full CI build pipeline (lint + test + package)
   #@ Category: Testing/CI
   echo "🚀 Running full CI build pipeline..."
   clean
-  ci:check
-  package:deb:docker
+  ci-check
+  docker-build-deb
   echo "✅ CI build pipeline completed successfully"
-}
-
-function test:package:workflow {
-  #@ Test the package build workflow locally using act
-  #@ Category: Testing/CI
-  echo "🧪 Testing package build workflow with act..."
-
-  # Check if act is installed
-  if ! command -v act &> /dev/null; then
-    echo "❌ Error: 'act' is not installed. Install with: brew install act"
-    return 1
-  fi
-
-  # Test the build-packages job from build.yml
-  echo "🐳 Running package build test with act (using linux/amd64 architecture)..."
-  echo "ℹ️  This will test the build-packages job from build.yml"
-  echo ""
-
-  # Run the build-packages job with act
-  act push \
-    -W .github/workflows/build.yml \
-    --job build-packages \
-    --container-architecture linux/amd64 \
-    --verbose
-
-  local exit_code=$?
-  if [ $exit_code -eq 0 ]; then
-    echo ""
-    echo "✅ Package build workflow test completed successfully!"
-    echo "🎯 The workflow should have created .deb packages and uploaded artifacts"
-  else
-    echo ""
-    echo "❌ Package build workflow test failed with exit code: $exit_code"
-    echo "💡 Check the output above for errors"
-    return $exit_code
-  fi
-}
-
-function test:package:workflow:dry {
-  #@ Dry run test of the package build workflow (shows steps without executing)
-  #@ Category: Testing/CI
-  echo "🧪 Dry run test of package build workflow..."
-
-  # Check if act is installed
-  if ! command -v act &> /dev/null; then
-    echo "❌ Error: 'act' is not installed. Install with: brew install act"
-    return 1
-  fi
-
-  echo "📋 Showing workflow steps that would run:"
-  act push \
-    -W .github/workflows/build.yml \
-    --job build-packages \
-    --container-architecture linux/amd64 \
-    -n
-}
-
-function test:release:workflow:local {
-  #@ Test the release workflow steps locally (without GitHub API calls)
-  #@ Category: Testing/CI
-  echo "🧪 Testing release workflow steps locally..."
-
-  echo "📖 Step 1: Reading version from VERSION file"
-  VERSION=$(cat VERSION | tr -d '\n\r ')
-  echo "version=$VERSION"
-  echo "Found version: $VERSION"
-  echo ""
-
-  echo "📦 Step 2: Building packages"
-  # Create minimal .env file to prevent docker-compose warnings
-  if [ ! -f .env ]; then
-    echo "# Minimal .env for local testing" > .env
-    echo "Created minimal .env file"
-  fi
-
-  # Use the run script's package build function
-  ./run package:deb:docker
-  echo ""
-
-  echo "📋 Step 3: Collecting built packages"
-  mkdir -p packages
-  # Find .deb files in current and parent directory (dpkg-buildpackage creates them in parent)
-  find . .. -maxdepth 1 -name "*.deb" -exec cp {} packages/ \; 2>/dev/null || true
-  echo "Packages found:"
-  ls -la packages/
-  echo "Package list:"
-  ls -1 packages/*.deb 2>/dev/null || echo "No packages found"
-  echo ""
-
-  echo "ℹ️  Step 4: Release drafter (skipped - requires GitHub API)"
-  echo "🚫 Step 5: Upload packages (skipped - requires GitHub API)"
-  echo ""
-
-  if [ -n "$(ls -A packages/ 2>/dev/null)" ]; then
-    echo "✅ Release workflow local test completed successfully!"
-    echo "📦 Generated packages are in the 'packages/' directory"
-    echo "🎯 In the real workflow, these would be attached to a draft release"
-  else
-    echo "❌ Release workflow local test failed - no packages were generated"
-    return 1
-  fi
 }
 
 ################################################################################
@@ -319,94 +183,42 @@ function pull {
     --exclude='.venv' halpi2:src/halpid/ .
 }
 
-function dev:env {
+function dev-env {
   #@ Show/check development environment
   #@ Category: Development Utilities
   _env
 }
 
-function dev:version:bump {
-  #@ Bump to specific version (e.g. 3.2.0)
-  #@ Usage: dev:version:bump <version>
+function debtools {
+  #@ Run a command inside the debtools Docker container
+  #@ Usage: debtools <command> [args]
   #@ Category: Development Utilities
-  local new_version="${1:-}"
-
-  if [ -z "$new_version" ]; then
-    echo "Error: Version required. Usage: dev:version:bump <new_version>"
-    echo "Current version: $(release:version)"
-    echo "Example: ./run dev:version:bump 3.2.0"
-    exit 1
-  fi
-
-  echo "🔖 Bumping version from $(release:version) to $new_version..."
-
-  # Update version files using bump2version
-  bump2version --new-version "$new_version" patch
-
-  # Set up environment for debian changelog
-  export DEBEMAIL="info@hatlabs.fi"
-  export DEBFULLNAME="Hat Labs CI"
-
-  # Convert version format for Debian (replace - with ~)
-  DEB_VERSION=$(echo "$new_version" | sed 's/-\([a-zA-Z]\)/~\1/g')
-
-  # Create a new debian/changelog entry
-  echo "📝 Creating debian/changelog entry for version $DEB_VERSION..."
-  dch --newversion "$DEB_VERSION" \
-      --distribution stable \
-      --force-distribution \
-      "Development release $new_version. See GitHub for details."
-
-  echo "✓ Version bumped to $(release:version)"
-  echo "✓ Debian changelog updated with version $DEB_VERSION"
+  export DIR_NAME=$(basename "$PWD")
+  docker compose -f docker/docker-compose.debtools.yml run --rm debtools "$@"
 }
 
-function dev:version:dry-run {
+function bumpversion-dry-run {
   #@ Preview version change without applying
-  #@ Usage: dev:version:dry-run <version>
+  #@ Usage: bumpversion-dry-run <version>
   #@ Category: Development Utilities
   local new_version="${1:-}"
 
   if [ -z "$new_version" ]; then
-    echo "Error: Version required. Usage: dev:version:dry-run <new_version>"
-    echo "Current version: $(release:version)"
-    echo "Example: ./run dev:version:dry-run 3.2.0"
+    echo "Error: Version required. Usage: bumpversion-dry-run <new_version>"
+    echo "Current version: $(version)"
+    echo "Example: ./run bumpversion-dry-run 3.2.0"
     exit 1
   fi
 
-  echo "Current version: $(release:version)"
+  echo "Current version: $(version)"
   echo "Preview of changes for version $new_version:"
-  echo ""
-
-  # Show bump2version preview
   bump2version --new-version "$new_version" patch --dry-run --verbose
-
-  echo ""
-  echo "Debian changelog entry that would be created:"
-  echo "----------------------------------------"
-
-  # Convert version format for Debian (replace - with ~)
-  DEB_VERSION=$(echo "$new_version" | sed 's/-\([a-zA-Z]\)/~\1/g')
-
-  # Show what the changelog entry would look like
-  echo "halpid ($DEB_VERSION) stable; urgency=medium"
-  echo ""
-  echo "  * Development release $new_version. See GitHub for details."
-  echo ""
-  echo " -- Hat Labs CI <info@hatlabs.fi>  $(date -R)"
-  echo ""
-}
-
-function dev:version:show {
-  #@ Show current version
-  #@ Category: Development Utilities
-  release:version
 }
 
 ################################################################################
 # Docker Commands
 
-function docker:build {
+function build-docker {
   #@ Build the Docker image
   #@ Category: Docker
   echo Building docker ${DOCKER_IMAGE}:${DOCKER_IMAGE_VERSION} ...
@@ -414,7 +226,7 @@ function docker:build {
     -f ./docker/Dockerfile --no-cache
 }
 
-function docker:remove {
+function remove-docker {
   #@ Remove the Docker image
   #@ Category: Docker
   echo Removing docker ${DOCKER_IMAGE}:${DOCKER_IMAGE_VERSION} ...
@@ -424,7 +236,7 @@ function docker:remove {
 ################################################################################
 # Setup/Installation Commands
 
-function uv-download {
+function install-uv {
   #@ Download and install the latest version of uv
   #@ Category: Setup/Installation
   curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -457,19 +269,6 @@ function build-remove {
   rm -rf build/ 2>/dev/null || true
 }
 
-# Legacy aliases for backward compatibility
-function debtools {
-  export DIR_NAME=$(basename "$PWD")
-  docker compose -f docker/docker-compose.debtools.yml run --rm debtools "$@"
-}
-
-function build-debian {
-  package:deb:only
-}
-
-function debtools-build {
-  package:deb:docker
-}
 
 ################################################################################
 # Project-specific commands end.

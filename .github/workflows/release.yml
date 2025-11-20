@@ -4,28 +4,29 @@ on:
   release:
     types: [published]
 
-jobs:
-  notify-apt-repo:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Extract version from tag
-      id: version
-      run: |
-        # Extract version from tag (remove 'v' prefix if present)
-        VERSION="${{ github.event.release.tag_name }}"
-        VERSION="${VERSION#v}"
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "Extracted version: $VERSION"
+permissions:
+  contents: read
 
-    - name: Trigger APT repository update
+env:
+  APT_DISTRO: ${{ vars.APT_DISTRO || 'trixie' }}
+  APT_COMPONENT: ${{ vars.APT_COMPONENT || 'hatlabs' }}
+
+jobs:
+  trigger-packaging:
+    runs-on: ubuntu-latest
+    # Only handle stable releases - pre-releases are handled by auto-prerelease.yml
+    if: ${{ github.event.release.prerelease == false }}
+    steps:
+    - name: Trigger APT repository
       uses: peter-evans/repository-dispatch@v3
       with:
-        token: ${{ secrets.APT_REPO_PAT }}
+        token: ${{ secrets.REPO_DISPATCH_PAT }}
         repository: hatlabs/apt.hatlabs.fi
         event-type: package-updated
         client-payload: |
           {
-            "package": "${{ github.event.repository.name }}",
-            "version": "${{ steps.version.outputs.version }}",
-            "repository": "${{ github.repository }}"
+            "repository": "${{ github.repository }}",
+            "distro": "${{ env.APT_DISTRO }}",
+            "channel": "stable",
+            "component": "${{ env.APT_COMPONENT }}"
           }
