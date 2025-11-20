@@ -12,7 +12,7 @@ runs:
       shell: bash
 
     - name: Build package
-      run: ./run package:deb:docker:ci
+      run: ./run package-deb-docker
       shell: bash
 
     - name: Collect built packages
