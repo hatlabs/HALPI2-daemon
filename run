@@ -396,10 +396,12 @@ function _env {
   # the environment. First file has precedence!
   if [ -f .env ]; then
     _export_unset .env
-  else
+  elif [ -f .env.defaults ]; then
     # Make sure a .env file exists, otherwise docker-compose will complain
     cp .env.defaults .env
+    _export_unset .env
   fi
+  # If neither file exists, continue without env setup (CI environment)
   if [ -f .env.defaults ]; then
     _export_unset .env.defaults
   fi
