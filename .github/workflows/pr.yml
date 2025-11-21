@@ -2,18 +2,8 @@ name: Pull Request Checks
 
 on:
   pull_request:
-    branches: [ main ]
-
-permissions:
-  contents: read
+    branches: [main]
 
 jobs:
-  tests:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Run tests
-        uses: ./.github/actions/run-tests
+  checks:
+    uses: hatlabs/shared-workflows/.github/workflows/pr-checks.yml@main
