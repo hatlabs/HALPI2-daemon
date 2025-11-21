@@ -118,12 +118,13 @@ jobs:
             # Generate release notes for draft
             .github/scripts/generate-release-notes.sh "${VERSION}" "${VERSION}" draft
 
-            echo "📋 Creating draft release v${VERSION}"
+            echo "📋 Creating draft release v${VERSION} with .deb package"
             gh release create "v${VERSION}" \
               --draft \
               --title "v${VERSION}" \
-              --notes-file release_notes.md
-            echo "✅ Draft release created successfully"
+              --notes-file release_notes.md \
+              *.deb
+            echo "✅ Draft release created successfully with .deb attached"
           fi
         env:
           GH_TOKEN: ${{ github.token }}
@@ -153,6 +154,6 @@ jobs:
           echo "Release tag: v${TAG_VERSION}"
           echo "Release URL: https://github.com/${{ github.repository }}/releases/tag/v${TAG_VERSION}"
           echo ""
-          echo "✅ Pre-release created"
-          echo "✅ Draft release created"
+          echo "✅ Pre-release created with .deb package"
+          echo "✅ Draft release created with .deb attached"
           echo "✅ Dispatched to apt.hatlabs.fi unstable channel"
