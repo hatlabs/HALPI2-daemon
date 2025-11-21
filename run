@@ -116,7 +116,7 @@ function docker-build-deb {
   # Use Docker container for Debian packaging
   echo "🐳 Running Debian packaging in Docker container..."
   export DIR_NAME=$(basename "$PWD")
-  debtools ./run build-deb-only
+  debtools ./run build-deb
 
   echo "✅ Docker-based Debian package built successfully"
 }
