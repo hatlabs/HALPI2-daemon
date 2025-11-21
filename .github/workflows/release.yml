@@ -12,21 +12,46 @@ env:
   APT_COMPONENT: ${{ vars.APT_COMPONENT || 'hatlabs' }}
 
 jobs:
-  trigger-packaging:
+  dispatch-to-apt:
     runs-on: ubuntu-latest
-    # Only handle stable releases - pre-releases are handled by auto-prerelease.yml
+    # Only handle stable releases - pre-releases are handled by main.yml
     if: ${{ github.event.release.prerelease == false }}
     steps:
-    - name: Trigger APT repository
-      uses: peter-evans/repository-dispatch@v4
-      with:
-        token: ${{ secrets.REPO_DISPATCH_PAT }}
-        repository: hatlabs/apt.hatlabs.fi
-        event-type: package-updated
-        client-payload: |
-          {
-            "repository": "${{ github.repository }}",
-            "distro": "${{ env.APT_DISTRO }}",
-            "channel": "stable",
-            "component": "${{ env.APT_COMPONENT }}"
-          }
+      - name: Verify release has assets
+        run: |
+          STABLE_TAG="${{ github.event.release.tag_name }}"
+          ASSET_COUNT=$(gh release view "$STABLE_TAG" --repo ${{ github.repository }} --json assets --jq '.assets | length')
+
+          if [ "$ASSET_COUNT" -eq 0 ]; then
+            echo "❌ Error: Release has no assets attached"
+            echo "The .deb package should have been attached when the draft was created"
+            exit 1
+          fi
+
+          echo "✅ Release has $ASSET_COUNT asset(s)"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Trigger APT repository
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.REPO_DISPATCH_PAT }}
+          repository: hatlabs/apt.hatlabs.fi
+          event-type: package-updated
+          client-payload: |
+            {
+              "repository": "${{ github.repository }}",
+              "distro": "${{ env.APT_DISTRO }}",
+              "channel": "stable",
+              "component": "${{ env.APT_COMPONENT }}"
+            }
+
+      - name: Report success
+        run: |
+          STABLE_TAG="${{ github.event.release.tag_name }}"
+
+          echo "=== Stable Release Published ==="
+          echo "Stable tag: $STABLE_TAG"
+          echo "Release URL: https://github.com/${{ github.repository }}/releases/tag/$STABLE_TAG"
+          echo ""
+          echo "✅ Dispatched to apt.hatlabs.fi stable channel"
