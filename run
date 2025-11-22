@@ -152,7 +152,8 @@ function build {
   #@ Build Debian package in Docker container
   #@ Category: Package Management
   echo "🐳 Building Debian package using Docker..."
-  devtools ./run build-deb
+  # Use root user to ensure write permissions on mounted volumes (needed for CI)
+  devtools-root ./run build-deb
   echo "✅ Build complete - packages in current directory"
 }
 
@@ -172,6 +173,13 @@ function devtools {
   #@ Usage: devtools <command> [args]
   #@ Category: Docker
   docker compose -f docker/docker-compose.devtools.yml run --rm devtools "$@"
+}
+
+function devtools-root {
+  #@ Run command in devtools container as root (for CI builds)
+  #@ Usage: devtools-root <command> [args]
+  #@ Category: Docker
+  docker compose -f docker/docker-compose.devtools.yml run --rm --user root devtools "$@"
 }
 
 function docker-shell {
