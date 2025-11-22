@@ -31,8 +31,10 @@ if [ -z "$UPSTREAM" ] || [ -z "$REVISION" ]; then
     exit 1
 fi
 
-# Package name
-PACKAGE_NAME="halpi2-daemon"
+# Package name - use PACKAGE_NAME env var (from workflow) or read from debian/control
+if [ -z "${PACKAGE_NAME:-}" ]; then
+    PACKAGE_NAME=$(grep "^Source:" debian/control | cut -d: -f2 | tr -d ' ')
+fi
 
 # Debian version format: upstream-revision
 DEBIAN_VERSION="${UPSTREAM}-${REVISION}"
