@@ -109,10 +109,16 @@ function build-deb {
   #@ Category: Package Management
   echo "🏗️ Building Debian package..."
 
+  # Save output directory explicitly (don't rely on $OLDPWD)
+  OUTPUT_DIR="$PWD"
+
   # Create a build area with the project as a subdirectory
   # This allows dpkg-buildpackage to write to the parent directory
   BUILD_AREA=$(mktemp -d)
   PROJECT_NAME=$(basename "$PWD")
+
+  echo "📁 Build area: $BUILD_AREA"
+  echo "📁 Output dir: $OUTPUT_DIR"
 
   # Copy source to build area
   cp -a . "$BUILD_AREA/$PROJECT_NAME"
@@ -122,8 +128,19 @@ function build-deb {
   uv sync
   dpkg-buildpackage -us -uc -b
 
+  # List what was built
+  echo "📦 Built packages:"
+  ls -la "$BUILD_AREA"/*.deb "$BUILD_AREA"/*.buildinfo "$BUILD_AREA"/*.changes 2>/dev/null || echo "Warning: No packages found in $BUILD_AREA"
+
   # Move artifacts back to original directory
-  mv "$BUILD_AREA"/*.deb "$BUILD_AREA"/*.buildinfo "$BUILD_AREA"/*.changes "$OLDPWD/" 2>/dev/null || true
+  echo "📦 Moving packages to $OUTPUT_DIR..."
+  mv "$BUILD_AREA"/*.deb "$OUTPUT_DIR/" 2>/dev/null || echo "Warning: Failed to move .deb files"
+  mv "$BUILD_AREA"/*.buildinfo "$OUTPUT_DIR/" 2>/dev/null || echo "Warning: Failed to move .buildinfo files"
+  mv "$BUILD_AREA"/*.changes "$OUTPUT_DIR/" 2>/dev/null || echo "Warning: Failed to move .changes files"
+
+  # Verify files exist in output directory
+  echo "📦 Verifying packages in $OUTPUT_DIR:"
+  ls -la "$OUTPUT_DIR"/*.deb 2>/dev/null || echo "Warning: No .deb files in $OUTPUT_DIR"
 
   # Cleanup
   rm -rf "$BUILD_AREA"
