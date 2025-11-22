@@ -4,20 +4,10 @@ description: 'Build HALPI2 daemon .deb package'
 runs:
   using: 'composite'
   steps:
-    - name: Create minimal .env file
-      run: |
-        if [ ! -f .env ]; then
-          echo "# Environment file for GitHub Actions" > .env
-        fi
-      shell: bash
-
     - name: Build package
-      run: ./run docker-build-deb
+      run: ./run build
       shell: bash
 
-    - name: Collect built packages
-      run: |
-        # Find .deb files created by dpkg-buildpackage (in parent directory)
-        find . .. -maxdepth 1 -name "*.deb" -exec mv {} ./ \; 2>/dev/null || true
-        ls -lh *.deb
+    - name: List built packages
+      run: ls -lh *.deb
       shell: bash

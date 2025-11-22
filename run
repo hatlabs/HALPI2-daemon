@@ -105,11 +105,29 @@ function bumpversion {
 # Package Management Commands
 
 function build-deb {
-  #@ Build Debian package (native, run inside devtools container)
+  #@ Build Debian package (run inside devtools container)
   #@ Category: Package Management
   echo "🏗️ Building Debian package..."
+
+  # Create a build area with the project as a subdirectory
+  # This allows dpkg-buildpackage to write to the parent directory
+  BUILD_AREA=$(mktemp -d)
+  PROJECT_NAME=$(basename "$PWD")
+
+  # Copy source to build area
+  cp -a . "$BUILD_AREA/$PROJECT_NAME"
+  cd "$BUILD_AREA/$PROJECT_NAME"
+
+  # Build the package
   uv sync
   dpkg-buildpackage -us -uc -b
+
+  # Move artifacts back to original directory
+  mv "$BUILD_AREA"/*.deb "$BUILD_AREA"/*.buildinfo "$BUILD_AREA"/*.changes "$OLDPWD/" 2>/dev/null || true
+
+  # Cleanup
+  rm -rf "$BUILD_AREA"
+
   echo "✅ Debian package built successfully"
 }
 
@@ -117,8 +135,8 @@ function build {
   #@ Build Debian package in Docker container
   #@ Category: Package Management
   echo "🐳 Building Debian package using Docker..."
-  devtools bash -c "uv sync && dpkg-buildpackage -us -uc -b"
-  echo "✅ Build complete"
+  devtools ./run build-deb
+  echo "✅ Build complete - packages in current directory"
 }
 
 function build-docker {
