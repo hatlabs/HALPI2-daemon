@@ -1,0 +1,53 @@
+# Development environment for HALPI2-daemon
+#
+# Provides a Debian Bookworm environment with all development and build tools.
+# Used for testing, linting, and Debian package building.
+
+FROM debian:bookworm
+
+# Install system dependencies including Debian packaging tools
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python3-dev \
+    debhelper \
+    dh-python \
+    pybuild-plugin-pyproject \
+    build-essential \
+    fakeroot \
+    devscripts \
+    dpkg-dev \
+    python3-all \
+    python3-setuptools \
+    curl \
+    git \
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for development
+ARG USERNAME=builder
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
+
+# Install uv system-wide
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && mv /root/.local/bin/uv /usr/local/bin/uv \
+    && mv /root/.local/bin/uvx /usr/local/bin/uvx
+
+# Set PATH for all users
+ENV PATH="/usr/local/bin:${PATH}"
+
+# Switch to non-root user
+USER $USERNAME
+
+# Set working directory
+WORKDIR /workspace
+
+# Default command
+CMD ["/bin/bash"]
