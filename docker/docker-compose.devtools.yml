@@ -1,0 +1,23 @@
+services:
+  devtools:
+    build:
+      context: .
+      dockerfile: Dockerfile.devtools
+    image: halpi2-daemon-devtools:latest
+
+    # Mount the project directory
+    volumes:
+      - ..:/workspace
+
+    # Working directory
+    working_dir: /workspace
+
+    # Keep container running for interactive use
+    stdin_open: true
+    tty: true
+
+    # Run as non-root user
+    user: builder
+
+    # Override command for interactive use
+    command: /bin/bash

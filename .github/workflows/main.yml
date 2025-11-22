@@ -8,7 +8,7 @@ jobs:
   build-release:
     uses: hatlabs/shared-workflows/.github/workflows/build-release.yml@main
     with:
-      package-name: halpi2-daemon
+      package-name: halpid
       package-description: 'HALPI2 hardware daemon (Python implementation)'
       apt-component: hatlabs
       runs-on: ubuntu-latest-arm64
