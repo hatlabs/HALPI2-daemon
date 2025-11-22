@@ -10,6 +10,7 @@ jobs:
     with:
       package-name: halpid
       package-description: 'HALPI2 hardware daemon (Python implementation)'
+      apt-distro: any
       apt-component: hatlabs
       runs-on: ubuntu-latest-arm64
     secrets:

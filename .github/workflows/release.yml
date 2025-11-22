@@ -8,6 +8,7 @@ jobs:
   publish:
     uses: hatlabs/shared-workflows/.github/workflows/publish-stable.yml@main
     with:
+      apt-distro: any
       apt-component: hatlabs
     secrets:
       APT_REPO_PAT: ${{ secrets.APT_REPO_PAT }}
